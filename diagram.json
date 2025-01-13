@@ -1,0 +1,44 @@
+{
+    "version": 1,
+    "author": "高小",
+    "editor": "wokwi",
+    "parts": [
+      { "type": "wokwi-esp32-devkit-v1", "id": "esp", "top": -129.7, "left": 52.6, "attrs": {} },
+      {
+        "type": "wokwi-ky-040",
+        "id": "encoder1",
+        "top": 80.6,
+        "left": 228.3,
+        "rotate": 270,
+        "attrs": {}
+      },
+      {
+        "type": "wokwi-ssd1306",
+        "id": "ssd1",
+        "top": 121.9,
+        "left": 78.7,
+        "attrs": { "i2c-address": "0x3c" }
+      },
+      {
+        "type": "wokwi-hx711",
+        "id": "cell1",
+        "top": -275.8,
+        "left": 117.8,
+        "attrs": { "type": "5kg" }
+      }
+    ],
+    "connections": [
+      [ "esp:TX0", "$serialMonitor:RX", "", [] ],
+      [ "esp:RX0", "$serialMonitor:TX", "", [] ],
+      [ "encoder1:VCC", "esp:3V3", "red", [ "h0.4", "v-48" ] ],
+      [ "encoder1:GND", "esp:GND.1", "black", [ "h0.8", "v-57.5" ] ],
+      [ "encoder1:DT", "esp:D32", "magenta", [ "h0.1", "v-124.7" ] ],
+      [ "encoder1:CLK", "esp:D33", "green", [ "v0" ] ],
+      [ "ssd1:CLK", "esp:D22", "green", [ "v0" ] ],
+      [ "ssd1:DATA", "esp:D21", "green", [ "v-38.4", "h297.9" ] ],
+      [ "ssd1:GND", "esp:GND.2", "black", [ "v-18.7", "h19.4", "v-47.9" ] ],
+      [ "ssd1:VIN", "esp:VIN", "red", [ "v-28.8", "h19.8", "v-28.8" ] ],
+      [ "encoder1:SW", "esp:D23", "green", [ "v0" ] ]
+    ],
+    "dependencies": {}
+  }
