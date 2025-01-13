@@ -14,8 +14,8 @@ Preferences pref;
 
 unsigned long _lastIncReadTime = millis(); 
 unsigned long _lastDecReadTime = millis(); 
-int _pauseLength = 500;
-int _fastIncrement = 12;
+int _pauseLength = 250;
+int _fastIncrement = 4;
 /*
 
 regular weigh
@@ -306,16 +306,16 @@ void encoder_change(int value) {
   }
   else if (menu_index == 3) {
     if (value >= 1) {
-      input_weight += value;
+      input_weight += value*5;
       Serial.println(input_weight);
     }
     else if (value <= -1) {
       if (input_weight > 0) {
-        if (input_weight+value <= 0) {
+        if (input_weight+value*5 <= 0) {
           input_weight = 0;
         }
         else {
-          input_weight += value;
+          input_weight += value*5;
         }
       }
       else if (input_weight < 0) {
@@ -336,6 +336,14 @@ void encoder_change(int value) {
         border_index--;
         selected_item--;
       }
+    }
+  }
+  else if (menu_index == 10) {
+    if (value >= 1) {
+      choice = 1;
+    }
+    else if (value <= -1) {
+      choice = 0;
     }
   }
 }
@@ -409,16 +417,19 @@ void switch_encoder() {
         case 1:
           Serial.println("Fill menu 1");
           input_weight = preset1;
+          choice = 1;
           menu_index = 10;
           break;
         case 2:
           Serial.println("Fill menu 2");
           input_weight = preset2;
+          choice = 1;
           menu_index = 10;
           break;
         case 3:
           Serial.println("Fill menu 3");
           input_weight = preset3;
+          choice = 1;
           menu_index = 10;
           break;
         case 4:
@@ -438,7 +449,8 @@ void switch_encoder() {
         menu_index = 2;
       }
       else {
-        Serial.print("Filling amount:");
+        choice = 1;
+        menu_index = 10;
         Serial.println(input_weight);
       }
     }
@@ -456,6 +468,15 @@ void switch_encoder() {
         case 3:
           Serial.println("Change preset 3");
           break;
+      }
+    }
+    else if (menu_index == 10) {
+      if (choice == 0) {
+        Serial.print("Yes - filling amount:");
+        Serial.println(input_weight);
+      }
+      else if (choice == 1) {
+        menu_index = 2;
       }
     }
 
@@ -528,6 +549,30 @@ void honey_fill_menu()
 
   for (int h = 0; h < 5; h++){
     u8g2.drawStr(15, 11+h*12, honey_menu_items[h + start_index]);
+    if (h+start_index == 0) {
+      u8g2.setFont(u8g2_font_unifont_t_symbols);
+      u8g2.drawUTF8(4, 12+h*12, "←");
+      u8g2.setFont(u8g2_font_6x10_tr);
+    }
+    else 
+    if (h+start_index == 1) {
+      char text[8];
+      snprintf(text, sizeof(text), "%d g", preset1);
+      u_int8_t posX = 125 - u8g2.getStrWidth(text);
+      u8g2.drawStr(posX, 11+h*12, text);
+    }
+    else if (h+start_index == 2) {
+      char text[8];
+      snprintf(text, sizeof(text), "%d g", preset2);
+      u_int8_t posX = 125 - u8g2.getStrWidth(text);
+      u8g2.drawStr(posX, 11+h*12, text);
+    }
+    else if (h+start_index == 3) {
+      char text[8];
+      snprintf(text, sizeof(text), "%d g", preset3);
+      u_int8_t posX = 125 - u8g2.getStrWidth(text);
+      u8g2.drawStr(posX, 11+h*12, text);
+    }
   }
 
   u8g2.sendBuffer();
@@ -570,11 +615,34 @@ void honey_preset_menu()
 
   for (int h = 0; h < 4; h++){
     u8g2.drawStr(15, 11+h*12, preset_menu_items[h + start_index]);
+    if (h+start_index == 0) {
+      u8g2.setFont(u8g2_font_unifont_t_symbols);
+      u8g2.drawUTF8(4, 12+h*12, "←");
+      u8g2.setFont(u8g2_font_6x10_tr);
+    }
+    else if (h+start_index == 1) {
+      char text[8];
+      snprintf(text, sizeof(text), "%d g", preset1);
+      u_int8_t posX = 125 - u8g2.getStrWidth(text);
+      u8g2.drawStr(posX, 11+h*12, text);
+    }
+    else if (h+start_index == 2) {
+      char text[8];
+      snprintf(text, sizeof(text), "%d g", preset2);
+      u_int8_t posX = 125 - u8g2.getStrWidth(text);
+      u8g2.drawStr(posX, 11+h*12, text);
+    }
+    else if (h+start_index == 3) {
+      char text[8];
+      snprintf(text, sizeof(text), "%d g", preset3);
+      u_int8_t posX = 125 - u8g2.getStrWidth(text);
+      u8g2.drawStr(posX, 11+h*12, text);
+    }
   }
-
   u8g2.sendBuffer();
-
 }
+
+
 
 // confirmation tab
 void confirm(int input) {
@@ -585,7 +653,7 @@ void confirm(int input) {
 
 
   char text[8];
-  snprintf(text, sizeof(text), "%d g", preset1);
+  snprintf(text, sizeof(text), "%d g", input_weight);
 
   int textWidth = u8g2.getStrWidth(text);
   int xPos = 80 - textWidth;
@@ -594,6 +662,8 @@ void confirm(int input) {
   u8g2.drawStr(25, 50, "Yes");
 
   u8g2.drawStr(90, 50, "No");
+
+  u8g2.drawFrame(20+62*choice, 40, 27, 13);
 
   u8g2.sendBuffer();
 }
