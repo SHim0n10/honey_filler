@@ -338,6 +338,29 @@ void encoder_change(int value) {
       }
     }
   }
+  else if (menu_index == 5 || menu_index == 6 || menu_index == 7) {
+    if (value >= 1) {
+      if (input_weight+value*5 <= 0) {
+        input_weight = 0;
+      }
+      else {
+        input_weight += value*5;
+      }
+    }
+    else if (value <= -1) {
+      if (input_weight > 0) {
+        if (input_weight+value*5 <= 0) {
+          input_weight = 0;
+        }
+        else {
+          input_weight += value*5;
+        }
+      }
+      else if (input_weight < 0) {
+        input_weight = 0;
+      }
+    }
+  }
   else if (menu_index == 10) {
     if (value >= 1) {
       choice = 1;
@@ -460,15 +483,39 @@ void switch_encoder() {
           menu_index = 2;
           break;
         case 1:
-          Serial.println("Change preset 1");
+          input_weight = preset1;
+          menu_index = 5;
           break;
         case 2:
-          Serial.println("Change preset 2");
+          input_weight = preset2;
+          menu_index = 6;
           break;
         case 3:
-          Serial.println("Change preset 3");
+          input_weight = preset3;
+          menu_index = 7;
           break;
       }
+    }
+    else if (menu_index == 5) {
+      preset1 = input_weight;
+      pref.begin("storage", false);
+      pref.putInt("preset1", input_weight);
+      pref.end();
+      menu_index = 4;
+    }
+    else if (menu_index == 6) {
+      preset2 = input_weight;
+      pref.begin("storage", false);
+      pref.putInt("preset2", input_weight);
+      pref.end();
+      menu_index = 4;
+    }
+    else if (menu_index == 7) {
+      preset3 = input_weight;
+      pref.begin("storage", false);
+      pref.putInt("preset3", input_weight);
+      pref.end();
+      menu_index = 4;
     }
     else if (menu_index == 10) {
       if (choice == 0) {
@@ -642,7 +689,29 @@ void honey_preset_menu()
   u8g2.sendBuffer();
 }
 
+void change_presets() {
+  
+  u8g2.clearBuffer();
 
+  u8g2.setFont(u8g2_font_6x10_tr);
+  u8g2.drawStr(16 ,15, "Rotate to change");
+
+  u8g2.setFont(u8g2_font_fub20_tr);
+  // const char* text = "780 g";
+  char text[8];
+  snprintf(text, sizeof(text), "%d g", input_weight);
+
+  
+  int textWidth = u8g2.getStrWidth(text);
+  int xPos = 106 - textWidth;
+  u8g2.drawStr(xPos, 42, text);
+
+  u8g2.setFont(u8g2_font_5x8_tr);
+  u8g2.drawStr(32 ,58, "click to save");
+
+  u8g2.sendBuffer();
+
+}
 
 // confirmation tab
 void confirm(int input) {
@@ -722,16 +791,13 @@ void loop() {
       honey_preset_menu();
       break;
     case 5:
-      Serial.println(menu_index);
-      menu_index = 1;
+      change_presets();
       break;
     case 6:
-      Serial.println(menu_index);
-      menu_index = 1;
+      change_presets();
       break;
     case 7:
-      Serial.println(menu_index);
-      menu_index = 1;
+      change_presets();
       break;
     case 8:
       Serial.println(menu_index);
