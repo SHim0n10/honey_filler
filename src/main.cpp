@@ -1,12 +1,15 @@
 #include <U8g2lib.h>
 #include <string>
 #include <Preferences.h>
+#include <HX711.h>
 
 // read data from storage
 
 Preferences pref;
+HX711 scale;
 
-
+#define LOADCELL_DOUT_PIN  26
+#define LOADCELL_SCK_PIN  25
 
 #define outputA 33
 #define outputB 32
@@ -217,6 +220,10 @@ int aState;
 int aLastState;
 int counter = 0; 
 
+
+uint8_t calibration = 0;
+int offset = 0;
+
 //list of items menu attributes
 int8_t selected_item = 0;
 uint8_t border_index = 0;
@@ -369,6 +376,30 @@ void encoder_change(int value) {
       choice = 0;
     }
   }
+  else if (menu_index == 8) {
+    if (value >= 1) {
+      if (input_weight+value*5 <= 0) {
+        input_weight = 0;
+      }
+      else {
+        input_weight += value*5;
+      }
+    }
+    else if (value <= -1) {
+      if (input_weight > 0) {
+        if (input_weight+value*5 <= 0) {
+          input_weight = 0;
+        }
+        else {
+          input_weight += value*5;
+        }
+      }
+      else if (input_weight < 0) {
+        input_weight = 0;
+      }
+    }
+    Serial.println(input_weight);
+  }
 }
 
 void read_encoder() {
@@ -414,12 +445,15 @@ void switch_encoder() {
  
   Serial.println("ON");
     if (menu_index == 0) {  // digital_scale
+      scale.power_down();
       menu_index = 1;
     }
     else if (menu_index == 1) {  // main_menu
       switch(item_selected) {
         case 0:
+          oldTime = millis();
           menu_index = 0;
+          scale.power_up();
           break;
         case 1:
           menu_index = 2;
@@ -526,6 +560,18 @@ void switch_encoder() {
         menu_index = 2;
       }
     }
+    else if (menu_index == 8) {
+      if (calibration == 1) {
+        calibration = 2;
+      }
+      else if (calibration == 3) {
+        calibration = 4;
+      }
+      else if (calibration == 4) {
+        menu_index = 1;
+        scale.power_down();
+      }
+    }
 
 } 
 
@@ -533,11 +579,24 @@ void home()
 {
   u8g2.clearBuffer();
 
+  unsigned long currentMillis = millis();
+
+  //kazdych 200ms sa vypise hodnota z vahy
+  if (currentMillis - oldTime >= 200) {
+    oldTime = currentMillis;
+  
+  //vypisovanie hodnoty z vahy
+  Serial.println(scale.get_units(1));
+  weight = scale.get_units(1);
   u8g2.setFont(u8g2_font_helvB24_tr);
-  const char* text = "1050 g";
+  }
+  char text[8];
+  snprintf(text, sizeof(text), "%d g", weight);
+
+  
   int textWidth = u8g2.getStrWidth(text);
   int xPos = 114 - textWidth;
-  u8g2.drawStr(xPos, 20+24, text);
+  u8g2.drawStr(xPos, 43, text);
 
   u8g2.sendBuffer();
 }
@@ -713,6 +772,55 @@ void change_presets() {
 
 }
 
+void calibrate()
+{
+  //start calibration
+  if (calibration == 0) {
+    scale.power_up();
+    Serial.println("\n\nCALIBRATION\n===========");
+    Serial.println("remove all weight from the loadcell");
+    Serial.println("and press button\n");
+    calibration = 1;
+  }
+  //wait for button press
+  else if (calibration == 2) {
+    Serial.println("Determine zero weight offset");
+    scale.tare(5);
+    offset = scale.get_offset();
+
+    Serial.print("OFFSET: ");
+    Serial.println(offset);
+    Serial.println();
+    Serial.println("place a weight on the loadcell");
+    Serial.println("enter the weight in (whole) grams and press enter");
+    input_weight = 0;
+    calibration = 3;
+  }
+  //wait for weight input (button press)
+  else if (calibration == 4) {
+    Serial.print("WEIGHT: ");
+    Serial.println(input_weight);
+    
+    scale.calibrate_scale(input_weight, 5);
+    float myscale = scale.get_scale();
+
+    Serial.print("SCALE:  ");
+    Serial.println(myscale, 6);
+
+    Serial.print("\nuse scale.set_offset(");
+    Serial.print(offset);
+    Serial.print("); and scale.set_scale(");
+    Serial.print(myscale, 6);
+    Serial.print(");\n");
+    Serial.println("in the setup of your project");
+
+    Serial.println("\n\n");
+    scale.power_down();
+    calibration = 0;
+    menu_index = 1;
+  }
+}
+
 // confirmation tab
 void confirm(int input) {
   u8g2.clearBuffer();
@@ -770,6 +878,11 @@ void setup() {
 
   pref.end();
 
+  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+  Serial.print("Calibration: ");
+  Serial.println(scale.get_scale());
+  scale.power_down();
+
   delay(3000);
 
 }
@@ -800,8 +913,7 @@ void loop() {
       change_presets();
       break;
     case 8:
-      Serial.println(menu_index);
-      menu_index = 1;
+      calibrate();
       break;
     case 9:
       Serial.println(menu_index);
