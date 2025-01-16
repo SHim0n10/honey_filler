@@ -881,6 +881,7 @@ void setup() {
   scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
   Serial.print("Calibration: ");
   Serial.println(scale.get_scale());
+  scale.set_scale(0.420000);
   scale.power_down();
 
   delay(3000);
