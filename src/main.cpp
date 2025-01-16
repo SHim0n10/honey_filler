@@ -776,6 +776,13 @@ void calibrate()
 {
   //start calibration
   if (calibration == 0) {
+    u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_6x10_tr);
+    u8g2.drawStr(14 ,15, "Remove all weight");
+    u8g2.drawStr(14 ,25, "from the loadcell.");
+    u8g2.drawStr(14 ,50, "press to continue");
+    u8g2.sendBuffer();
+
     scale.power_up();
     Serial.println("\n\nCALIBRATION\n===========");
     Serial.println("remove all weight from the loadcell");
@@ -795,6 +802,19 @@ void calibrate()
     Serial.println("enter the weight in (whole) grams and press enter");
     input_weight = 0;
     calibration = 3;
+  }
+  else if (calibration == 3) {
+    u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_6x10_tr);
+    u8g2.drawStr(25 ,15, "Place a weight");
+    u8g2.drawStr(20 ,25, "on the loadcell");
+    u8g2.drawStr(10 ,35, "and set the weight:");
+    char text[8];
+    snprintf(text, sizeof(text), "%d g", input_weight);
+    u_int16_t xPos = 80 - u8g2.getStrWidth(text);
+    u8g2.drawStr(xPos ,45, text);
+    u8g2.drawStr(14 ,55, "press to continue");
+    u8g2.sendBuffer();
   }
   //wait for weight input (button press)
   else if (calibration == 4) {
