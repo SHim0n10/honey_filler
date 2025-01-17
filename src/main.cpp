@@ -53,8 +53,8 @@ Menu:
 -------------(menu_index == 0 -> press to menu)
 
 */
-U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
-//U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, /* clock=*/ 13, /* data=*/ 12, /* CS=*/ 14, /* reset=*/ 25);
+// U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
+U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, /* clock=*/ 13, /* data=*/ 12, /* CS=*/ 14, /* reset=*/ 25);
 
 // BITMAPS
 
@@ -207,6 +207,8 @@ int preset1, preset2, preset3;
 //confirmation
 uint8_t choice = 0;
 
+uint8_t switch_counter = 0;
+
 uint16_t weight = 8888;
 uint16_t input_weight = 0;
 uint8_t menu_index = 1;
@@ -214,7 +216,8 @@ int item_index = 0;
 uint8_t item_selected = 0;
 int item_sel_previous;
 int item_sel_next;
-unsigned long oldTime;
+unsigned long oldTime = 0;
+unsigned long lastDebounceTime = 0;
 unsigned long dt = 500;
 int aState;
 int aLastState;
@@ -405,7 +408,7 @@ void encoder_change(int value) {
 void read_encoder() {
   // Encoder interrupt routine for both pins. Updates counter
   // if they are valid and have rotated a full indent
- 
+
   static uint8_t old_AB = 3;  // Lookup table index
   static int8_t encval = 0;   // Encoder value  
   static const int8_t enc_states[]  = {0,-1,1,0,1,0,0,-1,-1,0,0,1,0,1,-1,0}; // Lookup table
@@ -441,137 +444,143 @@ void read_encoder() {
 } 
 
 // change of interface logic
-void switch_encoder() {
+void IRAM_ATTR switch_encoder() {
+
+  unsigned long currentMillis = millis();
+  if (currentMillis - lastDebounceTime >= 500) {
+    lastDebounceTime = currentMillis;
+  
  
-  Serial.println("ON");
-    if (menu_index == 0) {  // digital_scale
-      scale.power_down();
-      menu_index = 1;
-    }
-    else if (menu_index == 1) {  // main_menu
-      switch(item_selected) {
-        case 0:
-          oldTime = millis();
-          menu_index = 0;
-          scale.power_up();
-          break;
-        case 1:
-          menu_index = 2;
-          break;
-        case 2:
-          menu_index = 8;
-          break;
-        case 3:
-          menu_index = 9;
-          break;
-      }
-    }
-    else if (menu_index == 2) {  // honey_fill_menu
-      switch(selected_item) {
-        case 0:
-          menu_index = 1;
-          break;
-        case 1:
-          Serial.println("Fill menu 1");
-          input_weight = preset1;
-          choice = 1;
-          menu_index = 10;
-          break;
-        case 2:
-          Serial.println("Fill menu 2");
-          input_weight = preset2;
-          choice = 1;
-          menu_index = 10;
-          break;
-        case 3:
-          Serial.println("Fill menu 3");
-          input_weight = preset3;
-          choice = 1;
-          menu_index = 10;
-          break;
-        case 4:
-          input_weight = 0;
-          menu_index = 3;
-          break;
-        case 5:
-          selected_item = 0;
-          border_index = 0;
-          start_index = 0;
-          menu_index = 4;
-          break;
-      }
-    }
-    else if (menu_index == 3) {
-      if (input_weight == 0) {
-        menu_index = 2;
-      }
-      else {
-        choice = 1;
-        menu_index = 10;
-        Serial.println(input_weight);
-      }
-    }
-    else if (menu_index == 4) {  // honey_fill_menu
-      switch(selected_item) {
-        case 0:
-          menu_index = 2;
-          break;
-        case 1:
-          input_weight = preset1;
-          menu_index = 5;
-          break;
-        case 2:
-          input_weight = preset2;
-          menu_index = 6;
-          break;
-        case 3:
-          input_weight = preset3;
-          menu_index = 7;
-          break;
-      }
-    }
-    else if (menu_index == 5) {
-      preset1 = input_weight;
-      pref.begin("storage", false);
-      pref.putInt("preset1", input_weight);
-      pref.end();
-      menu_index = 4;
-    }
-    else if (menu_index == 6) {
-      preset2 = input_weight;
-      pref.begin("storage", false);
-      pref.putInt("preset2", input_weight);
-      pref.end();
-      menu_index = 4;
-    }
-    else if (menu_index == 7) {
-      preset3 = input_weight;
-      pref.begin("storage", false);
-      pref.putInt("preset3", input_weight);
-      pref.end();
-      menu_index = 4;
-    }
-    else if (menu_index == 10) {
-      if (choice == 0) {
-        Serial.print("Yes - filling amount:");
-        Serial.println(input_weight);
-      }
-      else if (choice == 1) {
-        menu_index = 2;
-      }
-    }
-    else if (menu_index == 8) {
-      if (calibration == 1) {
-        calibration = 2;
-      }
-      else if (calibration == 3) {
-        calibration = 4;
-      }
-      else if (calibration == 4) {
-        menu_index = 1;
+    Serial.println("ON");
+      if (menu_index == 0) {  // digital_scale
         scale.power_down();
+        menu_index = 1;
       }
-    }
+      else if (menu_index == 1) {  // main_menu
+        switch(item_selected) {
+          case 0:
+            oldTime = millis();
+            menu_index = 0;
+            scale.power_up();
+            break;
+          case 1:
+            menu_index = 2;
+            break;
+          case 2:
+            menu_index = 8;
+            break;
+          case 3:
+            menu_index = 9;
+            break;
+        }
+      }
+      else if (menu_index == 2) {  // honey_fill_menu
+        switch(selected_item) {
+          case 0:
+            menu_index = 1;
+            break;
+          case 1:
+            Serial.println("Fill menu 1");
+            input_weight = preset1;
+            choice = 1;
+            menu_index = 10;
+            break;
+          case 2:
+            Serial.println("Fill menu 2");
+            input_weight = preset2;
+            choice = 1;
+            menu_index = 10;
+            break;
+          case 3:
+            Serial.println("Fill menu 3");
+            input_weight = preset3;
+            choice = 1;
+            menu_index = 10;
+            break;
+          case 4:
+            input_weight = 0;
+            menu_index = 3;
+            break;
+          case 5:
+            selected_item = 0;
+            border_index = 0;
+            start_index = 0;
+            menu_index = 4;
+            break;
+        }
+      }
+      else if (menu_index == 3) {
+        if (input_weight == 0) {
+          menu_index = 2;
+        }
+        else {
+          choice = 1;
+          menu_index = 10;
+          Serial.println(input_weight);
+        }
+      }
+      else if (menu_index == 4) {  // honey_fill_menu
+        switch(selected_item) {
+          case 0:
+            menu_index = 2;
+            break;
+          case 1:
+            input_weight = preset1;
+            menu_index = 5;
+            break;
+          case 2:
+            input_weight = preset2;
+            menu_index = 6;
+            break;
+          case 3:
+            input_weight = preset3;
+            menu_index = 7;
+            break;
+        }
+      }
+      else if (menu_index == 5) {
+        preset1 = input_weight;
+        pref.begin("storage", false);
+        pref.putInt("preset1", input_weight);
+        pref.end();
+        menu_index = 4;
+      }
+      else if (menu_index == 6) {
+        preset2 = input_weight;
+        pref.begin("storage", false);
+        pref.putInt("preset2", input_weight);
+        pref.end();
+        menu_index = 4;
+      }
+      else if (menu_index == 7) {
+        preset3 = input_weight;
+        pref.begin("storage", false);
+        pref.putInt("preset3", input_weight);
+        pref.end();
+        menu_index = 4;
+      }
+      else if (menu_index == 10) {
+        if (choice == 0) {
+          Serial.print("Yes - filling amount:");
+          Serial.println(input_weight);
+        }
+        else if (choice == 1) {
+          menu_index = 2;
+        }
+      }
+      else if (menu_index == 8) {
+        if (calibration == 1) {
+          calibration = 2;
+        }
+        else if (calibration == 3) {
+          calibration = 4;
+        }
+        else if (calibration == 4) {
+          menu_index = 1;
+          scale.power_down();
+        }
+      }
+  }
 
 } 
 
@@ -869,10 +878,10 @@ void setup() {
   //encoder setup
   pinMode(outputA,INPUT_PULLUP);
   pinMode(outputB,INPUT_PULLUP);
-  pinMode(outputSwitch, INPUT);
+  pinMode(outputSwitch, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(outputA), read_encoder, CHANGE);
   attachInterrupt(digitalPinToInterrupt(outputB), read_encoder, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(outputSwitch), switch_encoder, ONLOW);
+  attachInterrupt(digitalPinToInterrupt(outputSwitch), switch_encoder, FALLING);
 
   Serial.begin(9600);
   // aLastState = digitalRead(35);
