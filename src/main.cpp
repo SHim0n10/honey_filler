@@ -54,7 +54,7 @@ Menu:
 
 */
 // U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
-U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, /* clock=*/ 13, /* data=*/ 12, /* CS=*/ 14, /* reset=*/ 25);
+U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, /* clock=*/ 13, /* data=*/ 12, /* CS=*/ 14, /* reset=*/ 18);
 
 // BITMAPS
 
@@ -226,6 +226,8 @@ int counter = 0;
 
 uint8_t calibration = 0;
 int offset = 0;
+
+uint8_t filling = 0;
 
 //list of items menu attributes
 int8_t selected_item = 0;
@@ -563,6 +565,9 @@ void IRAM_ATTR switch_encoder() {
         if (choice == 0) {
           Serial.print("Yes - filling amount:");
           Serial.println(input_weight);
+          scale.power_up();
+          filling = 0;
+          menu_index = 11;
         }
         else if (choice == 1) {
           menu_index = 2;
@@ -577,6 +582,16 @@ void IRAM_ATTR switch_encoder() {
         }
         else if (calibration == 4) {
           menu_index = 1;
+          scale.power_down();
+        }
+      }
+      else if (menu_index == 11) {
+        if (filling == 0) {
+          filling = 1;
+        }
+        else if (filling == 2) {
+          filling = 0;
+          menu_index = 2;
           scale.power_down();
         }
       }
@@ -874,6 +889,108 @@ void confirm(int input) {
   u8g2.sendBuffer();
 }
 
+void fill_honey() {
+  if (filling == 0) {
+    u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_6x10_tr);
+    u8g2.drawStr(26, 15, "Please remove");
+    u8g2.drawStr(33, 25, "any weight");
+    u8g2.drawStr(15, 50, "press to continue");
+    u8g2.sendBuffer();
+  }
+  else if (filling == 1) {
+    delay(200);
+    scale.tare(5);
+    filling = 2;
+  }
+  else if (filling == 2) {
+    u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_6x10_tr);
+    u8g2.drawStr(19, 15, "To start filling");
+    u8g2.drawStr(10, 25, "place the container");
+    u8g2.drawStr(30, 35, "on the scale");
+
+    u8g2.setFont(u8g2_font_5x8_tr);
+    u8g2.drawStr(32, 50, "press to exit");
+
+    u8g2.sendBuffer();
+
+    if (scale.is_ready()) {
+    scale.set_average_mode();
+    weight = scale.get_units(3);
+    if (weight > 10000) {
+      weight = 0;
+    }
+    Serial.println(weight);
+    if (weight > 100)
+    {
+      delay(1000);
+      scale.tare(5);
+      filling = 3;
+    }
+    }
+  }
+  if (filling == 3) {
+    int16_t actual_weight = scale.get_units(2);
+    if (actual_weight < 0) {
+      actual_weight = 0;
+    }
+    uint8_t fill_percentage = (actual_weight*100)/input_weight;
+
+    if (fill_percentage > 100) {
+      fill_percentage = 100;
+    }
+
+    if (fill_percentage < 80) {
+      Serial.println("servo at 100 %");
+    }
+    else if (fill_percentage < 90) {
+      Serial.println("servo at 35 %");
+    }
+    else if (fill_percentage < 100) {
+      Serial.println("servo at 10 %");
+    }
+    else {
+      Serial.println("servo at 0 %");
+    }
+
+    u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_6x10_tr);
+    u8g2.drawStr(44, 15, "Filling");
+    char text[8];
+    snprintf(text, sizeof(text), "%d g", actual_weight);
+    u_int8_t xPos = 78 - u8g2.getStrWidth(text);
+    u8g2.drawStr(xPos, 30, text);
+
+    u8g2.drawFrame(13, 40, 104, 10);
+    u8g2.drawBox(15, 42, fill_percentage, 6);
+
+
+    u8g2.setFont(u8g2_font_5x8_tr);
+    snprintf(text, sizeof(text), "%d %%", fill_percentage);
+    xPos = 75 - u8g2.getStrWidth(text);
+    u8g2.drawStr(xPos, 58, text);
+
+    u8g2.sendBuffer();
+    if (fill_percentage >= 100) {
+      delay(1000);
+      filling = 4;
+    }
+  }
+  if (filling == 4) {
+    u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_6x10_tr);
+    u8g2.drawStr(18, 15, "Filling complete");
+    u8g2.drawStr(12, 50, "take the container");
+    u8g2.sendBuffer();
+
+    if (scale.get_units(2) < 50) {
+      delay(500);
+      filling = 1;
+    }
+  }
+}
+
 void setup() {
   //encoder setup
   pinMode(outputA,INPUT_PULLUP);
@@ -951,6 +1068,9 @@ void loop() {
       break;
     case 10:
       confirm(input_weight);
+      break;
+    case 11:
+      fill_honey();
       break;
   }
 }
