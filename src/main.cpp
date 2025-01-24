@@ -209,7 +209,7 @@ uint8_t choice = 0;
 
 uint8_t switch_counter = 0;
 
-uint16_t weight = 8888;
+int32_t weight = 8888;
 uint16_t input_weight = 0;
 uint8_t menu_index = 1;
 int item_index = 0;
@@ -455,8 +455,8 @@ void IRAM_ATTR switch_encoder() {
  
     Serial.println("ON");
       if (menu_index == 0) {  // digital_scale
-        scale.power_down();
         menu_index = 1;
+        scale.power_down();
       }
       else if (menu_index == 1) {  // main_menu
         switch(item_selected) {
