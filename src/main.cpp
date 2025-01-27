@@ -53,8 +53,8 @@ Menu:
 -------------(menu_index == 0 -> press to menu)
 
 */
-// U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
-U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, /* clock=*/ 13, /* data=*/ 12, /* CS=*/ 14, /* reset=*/ 18);
+U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
+// U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, /* clock=*/ 13, /* data=*/ 12, /* CS=*/ 14, /* reset=*/ 18);
 
 // BITMAPS
 
@@ -590,8 +590,8 @@ void IRAM_ATTR switch_encoder() {
           filling = 1;
         }
         else if (filling == 2) {
-          filling = 0;
           menu_index = 2;
+          filling = 0;
           scale.power_down();
         }
       }
@@ -670,7 +670,6 @@ void main_menu()
 
 void honey_fill_menu()
 {
-
   u8g2.clearBuffer();
 
   u8g2.drawXBMP(0, 2+border_index*12, 128, 12, epd_bitmap_border);
@@ -918,7 +917,7 @@ void fill_honey() {
     if (scale.is_ready()) {
     scale.set_average_mode();
     weight = scale.get_units(3);
-    if (weight > 10000) {
+    if (weight < 0) {
       weight = 0;
     }
     Serial.println(weight);
@@ -927,6 +926,9 @@ void fill_honey() {
       delay(1000);
       scale.tare(5);
       filling = 3;
+    }
+    if (filling == 0) {
+      return;
     }
     }
   }
@@ -1027,7 +1029,9 @@ void setup() {
   scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
   Serial.print("Calibration: ");
   Serial.println(scale.get_scale());
-  scale.set_scale(0.420000);
+
+  scale.set_offset(-99074);
+  scale.set_scale(385.748016);
   scale.power_down();
 
   delay(3000);
