@@ -2,6 +2,7 @@
 #include <string>
 #include <Preferences.h>
 #include <HX711.h>
+#include <ESP32Servo.h>
 
 // read data from storage
 
@@ -14,6 +15,10 @@ HX711 scale;
 #define outputA 33
 #define outputB 32
 #define outputSwitch 23
+
+#define servoPin 27
+
+Servo servo;
 
 unsigned long _lastIncReadTime = millis(); 
 unsigned long _lastDecReadTime = millis(); 
@@ -944,15 +949,19 @@ void fill_honey() {
     }
 
     if (fill_percentage < 80) {
+      servo.write(180);
       Serial.println("servo at 100 %");
     }
     else if (fill_percentage < 90) {
+      servo.write(65);
       Serial.println("servo at 35 %");
     }
     else if (fill_percentage < 100) {
+      servo.write(20);
       Serial.println("servo at 10 %");
     }
     else {
+      servo.write(0);
       Serial.println("servo at 0 %");
     }
 
@@ -1001,6 +1010,8 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(outputA), read_encoder, CHANGE);
   attachInterrupt(digitalPinToInterrupt(outputB), read_encoder, CHANGE);
   attachInterrupt(digitalPinToInterrupt(outputSwitch), switch_encoder, FALLING);
+
+  servo.attach(servoPin);
 
   Serial.begin(9600);
   // aLastState = digitalRead(35);

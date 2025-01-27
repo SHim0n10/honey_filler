@@ -25,6 +25,14 @@
       "top": -275.8,
       "left": 117.8,
       "attrs": { "type": "5kg" }
+    },
+    {
+      "type": "wokwi-servo",
+      "id": "servo1",
+      "top": 121,
+      "left": -123.8,
+      "rotate": 90,
+      "attrs": {}
     }
   ],
   "connections": [
@@ -33,7 +41,7 @@
     [ "encoder1:VCC", "esp:3V3", "red", [ "h0.4", "v-48" ] ],
     [ "encoder1:GND", "esp:GND.1", "black", [ "h0.8", "v-57.5" ] ],
     [ "encoder1:DT", "esp:D32", "magenta", [ "h0.1", "v-124.7" ] ],
-    [ "encoder1:CLK", "esp:D33", "green", [ "v0" ] ],
+    [ "encoder1:CLK", "esp:D33", "green", [ "v-201.6", "h-220.8", "v96" ] ],
     [ "ssd1:CLK", "esp:D22", "green", [ "v0" ] ],
     [ "ssd1:DATA", "esp:D21", "green", [ "v-38.4", "h67.2", "v-162.8" ] ],
     [ "ssd1:GND", "esp:GND.2", "black", [ "v-18.7", "h19.4", "v-47.9" ] ],
@@ -41,8 +49,11 @@
     [ "encoder1:SW", "esp:D23", "green", [ "v0" ] ],
     [ "cell1:GND", "esp:GND.2", "black", [ "h-134.4", "v268.5" ] ],
     [ "cell1:VCC", "esp:3V3", "red", [ "h96", "v220.8", "h-48", "v28.8" ] ],
-    [ "cell1:DT", "esp:D26", "green", [ "h-105.6", "v210.8" ] ],
-    [ "cell1:SCK", "esp:D25", "green", [ "h-96", "v18.4" ] ]
+    [ "cell1:DT", "esp:D26", "blue", [ "h-105.6", "v210.8" ] ],
+    [ "cell1:SCK", "esp:D25", "limegreen", [ "h-96", "v18.4" ] ],
+    [ "servo1:PWM", "esp:D27", "orange", [ "v0" ] ],
+    [ "servo1:V+", "esp:VIN", "red", [ "v0" ] ],
+    [ "servo1:GND", "esp:GND.2", "black", [ "v0" ] ]
   ],
   "dependencies": {}
 }
