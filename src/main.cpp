@@ -321,7 +321,7 @@ void encoder_change(int value) {
       }
     }
   }
-  else if (menu_index == 3) {
+  else if (menu_index == 3) {  // custom_fill_menu
     if (value >= 1) {
       input_weight += value*5;
     }
@@ -353,7 +353,7 @@ void encoder_change(int value) {
       }
     }
   }
-  else if (menu_index == 5 || menu_index == 6 || menu_index == 7) {
+  else if (menu_index == 5 || menu_index == 6 || menu_index == 7) {  // preset_menu
     if (value >= 1) {
       if (input_weight+value*5 <= 0) {
         input_weight = 0;
@@ -376,7 +376,7 @@ void encoder_change(int value) {
       }
     }
   }
-  else if (menu_index == 10) {
+  else if (menu_index == 10) {  // confirmation
     if (value >= 1) {
       choice = 1;
     }
@@ -503,10 +503,11 @@ void IRAM_ATTR switch_encoder() {
     lastDebounceTime = currentMillis;
   
  
-    Serial.println("ON");
       if (menu_index == 0) {  // digital_scale
+        
+        delay(200);
+        
         menu_index = 1;
-        scale.power_down();
       }
       else if (menu_index == 1) {  // main_menu
         switch(item_selected) {
@@ -587,28 +588,28 @@ void IRAM_ATTR switch_encoder() {
             break;
         }
       }
-      else if (menu_index == 5) {
+      else if (menu_index == 5) {  // preset1
         preset1 = input_weight;
         pref.begin("storage", false);
         pref.putInt("preset1", input_weight);
         pref.end();
         menu_index = 4;
       }
-      else if (menu_index == 6) {
+      else if (menu_index == 6) {  // preset2
         preset2 = input_weight;
         pref.begin("storage", false);
         pref.putInt("preset2", input_weight);
         pref.end();
         menu_index = 4;
       }
-      else if (menu_index == 7) {
+      else if (menu_index == 7) {  // preset3
         preset3 = input_weight;
         pref.begin("storage", false);
         pref.putInt("preset3", input_weight);
         pref.end();
         menu_index = 4;
       }
-      else if (menu_index == 10) {
+      else if (menu_index == 10) {  // confirmation
         if (choice == 0) {
           Serial.print("Yes - filling amount:");
           scale.power_up();
@@ -619,7 +620,7 @@ void IRAM_ATTR switch_encoder() {
           menu_index = 2;
         }
       }
-      else if (menu_index == 8) {
+      else if (menu_index == 8) {  // calibration
         if (calibration == 1) {
           calibration = 2;
         }
@@ -631,14 +632,13 @@ void IRAM_ATTR switch_encoder() {
           scale.power_down();
         }
       }
-      else if (menu_index == 11) {
+      else if (menu_index == 11) {  // filling
         if (filling == 0) {
           filling = 1;
         }
         else if (filling == 2) {
           menu_index = 2;
           filling = 0;
-          scale.power_down();
         }
       }
   }
@@ -1089,7 +1089,7 @@ void setup() {
   scale.set_scale(385.748016);
   scale.power_down();
 
-  delay(200);
+  delay(500);
 
 }
 void loop() {
@@ -1098,9 +1098,15 @@ void loop() {
       home();
       break;
     case 1:
+      if (scale.is_ready()) {
+        scale.power_down();
+      }
       main_menu();
       break;
     case 2:
+      if (scale.is_ready()) {
+        scale.power_down();
+      }
       honey_fill_menu();
       break;
     case 3:
