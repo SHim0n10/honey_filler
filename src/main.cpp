@@ -58,8 +58,8 @@ Menu:
 -------------(menu_index == 0 -> press to menu)
 
 */
-U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
-// U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, /* clock=*/ 13, /* data=*/ 12, /* CS=*/ 14, /* reset=*/ 18);
+// U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
+U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, /* clock=*/ 13, /* data=*/ 12, /* CS=*/ 14, /* reset=*/ 18);
 
 // BITMAPS
 
@@ -324,7 +324,6 @@ void encoder_change(int value) {
   else if (menu_index == 3) {
     if (value >= 1) {
       input_weight += value*5;
-      Serial.println(input_weight);
     }
     else if (value <= -1) {
       if (input_weight > 0) {
@@ -338,7 +337,6 @@ void encoder_change(int value) {
       else if (input_weight < 0) {
         input_weight = 0;
       }
-      Serial.println(input_weight);
     }
   }
   else if (menu_index == 4) { // honey_preset_menu
@@ -408,47 +406,94 @@ void encoder_change(int value) {
         input_weight = 0;
       }
     }
-    Serial.println(input_weight);
   }
 }
 
 void read_encoder() {
-  // Encoder interrupt routine for both pins. Updates counter
-  // if they are valid and have rotated a full indent
+  static uint8_t old_AB = 3;
+  static int8_t encval = 0; 
+  static const int8_t enc_states[]  = {0,-1,1,0,1,0,0,-1,-1,0,0,1,0,1,-1,0};
 
-  static uint8_t old_AB = 3;  // Lookup table index
-  static int8_t encval = 0;   // Encoder value  
-  static const int8_t enc_states[]  = {0,-1,1,0,1,0,0,-1,-1,0,0,1,0,1,-1,0}; // Lookup table
+  old_AB <<=2;
 
-  old_AB <<=2;  // Remember previous state
-
-  if (digitalRead(outputA)) old_AB |= 0x02; // Add current state of pin A
-  if (digitalRead(outputB)) old_AB |= 0x01; // Add current state of pin B
+  if (digitalRead(outputA)) old_AB |= 0x02;
+  if (digitalRead(outputB)) old_AB |= 0x01;
 
   encval += enc_states[( old_AB & 0x0f )];
 
-  // Update counter if encoder has rotated a full indent, that is at least 4 steps
-  if( encval > 3 ) {        // Four steps forward
+  if( encval > 3 ) {
     int changevalue = 1;
     if((millis() - _lastIncReadTime) < _pauseLength) {
       changevalue = _fastIncrement * changevalue; 
     }
     _lastIncReadTime = millis();
-    // counter1 = counter1 + changevalue;              // Update counter
     encoder_change(changevalue);
     encval = 0;
   }
-  else if( encval < -3 ) {        // Four steps backward
+  else if( encval < -3 ) {
     int changevalue = -1;
     if((millis() - _lastDecReadTime) < _pauseLength) {
       changevalue = _fastIncrement * changevalue; 
     }
     _lastDecReadTime = millis();
-    // counter1 = counter1 + changevalue;              // Update counter
     encoder_change(changevalue);
     encval = 0;
   }
 } 
+
+void read_encoder1() {
+  static int8_t encoder_state = 0;
+  static int8_t changevalue = 0;
+  
+  if (encoder_state <= 1 && -1 <= encoder_state) {  // pociatocny stav
+    if (encoder_state == 0 && digitalRead(outputA) == LOW) {
+      encoder_state = 1;
+    }
+    else if (encoder_state == 0 && digitalRead(outputB) == LOW) {
+      encoder_state = -1;
+    }
+    else if (encoder_state == 1 && digitalRead(outputB) == LOW) {
+        encoder_state = 2;
+    }
+    else if (encoder_state == -1 && digitalRead(outputA) == LOW) {
+        encoder_state = -2;
+    }
+  }
+  else if (encoder_state >= 2) {  // ak sa toci doprava
+    if (encoder_state == 2 && digitalRead(outputA) == HIGH) {
+      encoder_state = 3;
+    }
+    if (encoder_state == 3 && digitalRead(outputB) == HIGH) {  // presiel cez druhy senzor
+        changevalue = 1;
+        if((millis() - _lastIncReadTime) < _pauseLength) {
+          changevalue = _fastIncrement * changevalue; 
+        }
+        _lastIncReadTime = millis();
+        encoder_change(changevalue);
+        encoder_state = 0;
+      }
+  }
+  else if (encoder_state <= -2) {  // ak sa toci dolava
+    if (encoder_state == -2 && digitalRead(outputB) == HIGH) {
+      encoder_state = -3;
+    }
+    if (encoder_state == -3 && digitalRead(outputA) == HIGH) {  // presiel cez druhy senzor
+        changevalue = -1;
+        if((millis() - _lastIncReadTime) < _pauseLength) {
+          changevalue = _fastIncrement * changevalue; 
+        }
+        _lastIncReadTime = millis();
+        encoder_change(changevalue);
+        encoder_state = 0;
+      }
+  }
+  if (encoder_state == 1 || encoder_state == -1) {
+    if (digitalRead(outputA) == HIGH && digitalRead(outputB) == HIGH) {
+      encoder_state = 0;
+    }
+  }
+
+}
 
 // change of interface logic
 void IRAM_ATTR switch_encoder() {
@@ -487,19 +532,16 @@ void IRAM_ATTR switch_encoder() {
             menu_index = 1;
             break;
           case 1:
-            Serial.println("Fill menu 1");
             input_weight = preset1;
             choice = 1;
             menu_index = 10;
             break;
           case 2:
-            Serial.println("Fill menu 2");
             input_weight = preset2;
             choice = 1;
             menu_index = 10;
             break;
           case 3:
-            Serial.println("Fill menu 3");
             input_weight = preset3;
             choice = 1;
             menu_index = 10;
@@ -569,7 +611,6 @@ void IRAM_ATTR switch_encoder() {
       else if (menu_index == 10) {
         if (choice == 0) {
           Serial.print("Yes - filling amount:");
-          Serial.println(input_weight);
           scale.power_up();
           filling = 0;
           menu_index = 11;
@@ -847,7 +888,6 @@ void calibrate()
   //wait for weight input (button press)
   else if (calibration == 4) {
     Serial.print("WEIGHT: ");
-    Serial.println(input_weight);
     
     scale.calibrate_scale(input_weight, 5);
     float myscale = scale.get_scale();
@@ -1007,8 +1047,12 @@ void setup() {
   pinMode(outputA,INPUT_PULLUP);
   pinMode(outputB,INPUT_PULLUP);
   pinMode(outputSwitch, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(outputA), read_encoder, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(outputB), read_encoder, CHANGE);
+  // attachInterrupt(digitalPinToInterrupt(outputA), read_encoder, CHANGE);
+  // attachInterrupt(digitalPinToInterrupt(outputB), read_encoder, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(outputA), read_encoder1, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(outputB), read_encoder1, CHANGE);
+
+
   attachInterrupt(digitalPinToInterrupt(outputSwitch), switch_encoder, FALLING);
 
   servo.attach(servoPin);
@@ -1045,7 +1089,7 @@ void setup() {
   scale.set_scale(385.748016);
   scale.power_down();
 
-  delay(3000);
+  delay(200);
 
 }
 void loop() {
