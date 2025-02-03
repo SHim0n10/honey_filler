@@ -22,8 +22,8 @@ Servo servo;
 
 unsigned long _lastIncReadTime = millis(); 
 unsigned long _lastDecReadTime = millis(); 
-int _pauseLength = 250;
-int _fastIncrement = 4;
+const int _pauseLength = 250;
+const int _fastIncrement = 4;
 /*
 
 regular weigh
@@ -59,7 +59,18 @@ Menu:
 
 */
 // U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
-U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, /* clock=*/ 13, /* data=*/ 12, /* CS=*/ 14, /* reset=*/ 18);
+U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, /* clock=*/ 13, /* data=*/ 12, /* CS=*/ 14, /* reset=*/ 4);
+
+/*
+E       13 (CLOCK)
+RW      12 (DATA)
+RS      14 (CS)
+
+PSB     GND
+
+BLK     GND
+BLA     3.3V
+*/
 
 // BITMAPS
 
@@ -207,7 +218,10 @@ const unsigned char* bitmap_icons[4] [5] = {
   {epd_bitmap_settings_icon1, epd_bitmap_settings_icon2}
 };
 
-int preset1, preset2, preset3;
+int preset1, preset2, preset3, language;
+
+//pocet jazykov
+const int LANGUAGES = 2;
 
 //confirmation
 uint8_t choice = 0;
@@ -243,35 +257,71 @@ uint8_t start_index = 0;
 const int ITEMS_NUM = 4;
 const int MAX_ITEM_LENGTH = 15;
 
-char menu_items [ITEMS_NUM] [MAX_ITEM_LENGTH] = {
-  { "Digital scale" },
+char menu_items [LANGUAGES][ITEMS_NUM] [MAX_ITEM_LENGTH] = {
+  {{ "Vaha" },
+  { "Plnit med" },
+  { "Kalibracia" },
+  { "Ovladanie" }},
+  {{ "Digital scale" },
   { "Fill honey" },
   { "Calibration" },
-  { "Control" }
+  { "Control" }}
 };
 
 //Honey fill menu
 const int HONEY_ITEMS_NUM = 6;
 const int HONEY_MAX_ITEM_LENGTH = 15;
 
-char honey_menu_items [HONEY_ITEMS_NUM] [HONEY_MAX_ITEM_LENGTH] = {
-  { "Menu" },
+char honey_menu_items [LANGUAGES][HONEY_ITEMS_NUM] [HONEY_MAX_ITEM_LENGTH] = {
+  {{ "Menu" },
+  { "P1" },
+  { "P2" },
+  { "P3" },
+  { "Vlastne" },
+  { "Zmena profilov" }},
+  {{ "Menu" },
   { "P1" },
   { "P2" },
   { "P3" },
   { "Custom" },
-  { "Change presets" }
+  { "Change presets" }}
 };
 
 //Honey preset menu
 const int PRESET_ITEMS_NUM = 4;
-const int PRESET_MAX_ITEM_LENGTH = 5;
+const int PRESET_MAX_ITEM_LENGTH = 7;
 
-char preset_menu_items [PRESET_ITEMS_NUM] [PRESET_MAX_ITEM_LENGTH] = {
-  { "Back" },
+char preset_menu_items [LANGUAGES][PRESET_ITEMS_NUM] [PRESET_MAX_ITEM_LENGTH] = {
+  {{ "Dozadu" },
   { "P1" },
   { "P2" },
-  { "P3" }
+  { "P3" }},
+  {{ "Back" },
+  { "P1" },
+  { "P2" },
+  { "P3" }}
+};
+
+//Control menu
+const int CONTROL_ITEMS_NUM = 3;
+const int CONTROL_ITEMS_ITEM_LENGTH = 9;
+
+char control_menu_items [LANGUAGES][CONTROL_ITEMS_NUM] [CONTROL_ITEMS_ITEM_LENGTH] = {
+  {{ "Menu" },
+  { "Servo" },
+  { "Jazyk" }},
+  {{ "Menu" },
+  { "Servo" },
+  { "Language" }}
+};
+
+const int LANGUAGE_ITEMS_NUM = 3;
+const int LANGUAGE_ITEMS_ITEM_LENGTH = 10;
+
+char language_menu_items [LANGUAGE_ITEMS_NUM] [LANGUAGE_ITEMS_ITEM_LENGTH] = {
+  { "----" },
+  { "Slovensky" },
+  { "English" }
 };
 
 
@@ -376,14 +426,6 @@ void encoder_change(int value) {
       }
     }
   }
-  else if (menu_index == 10) {  // confirmation
-    if (value >= 1) {
-      choice = 1;
-    }
-    else if (value <= -1) {
-      choice = 0;
-    }
-  }
   else if (menu_index == 8) {
     if (value >= 1) {
       if (input_weight+value*5 <= 0) {
@@ -407,9 +449,69 @@ void encoder_change(int value) {
       }
     }
   }
+  else if (menu_index == 9) {  // control_menu
+    if (value >= 1) {
+      if (selected_item+1<CONTROL_ITEMS_NUM) { // pokial nie je na konci
+        if (border_index==4) { // ak je border naspodu
+          selected_item++;
+          start_index++;
+        }
+        else {
+          border_index++;
+          selected_item++;
+        }
+      }
+    }
+    else if (value <= -1) {
+      if (selected_item-1>=0) { // pokial nie je na zaciatku
+        if (border_index==0) { // ak je border navrchu
+          selected_item--;
+          start_index--;
+        }
+        else {
+          border_index--;
+          selected_item--;
+        }
+      }
+    }
+  }
+  else if (menu_index == 10) {  // confirmation
+    if (value >= 1) {
+      choice = 1;
+    }
+    else if (value <= -1) {
+      choice = 0;
+    }
+  }
+  else if (menu_index == 12) { // language_menu
+    if (value >= 1) {
+      if (selected_item+1<LANGUAGE_ITEMS_NUM) { // pokial nie je na konci
+        if (border_index==4) { // ak je border naspodu
+          selected_item++;
+          start_index++;
+        }
+        else {
+          border_index++;
+          selected_item++;
+        }
+      }
+    }
+    else if (value <= -1) {
+      if (selected_item-1>=0) { // pokial nie je na zaciatku
+        if (border_index==0) { // ak je border navrchu
+          selected_item--;
+          start_index--;
+        }
+        else {
+          border_index--;
+          selected_item--;
+        }
+      }
+    }
+  }
 }
 
-void read_encoder() {
+void read_encoder() { //nepouziva sa
   static uint8_t old_AB = 3;
   static int8_t encval = 0; 
   static const int8_t enc_states[]  = {0,-1,1,0,1,0,0,-1,-1,0,0,1,0,1,-1,0};
@@ -609,17 +711,6 @@ void IRAM_ATTR switch_encoder() {
         pref.end();
         menu_index = 4;
       }
-      else if (menu_index == 10) {  // confirmation
-        if (choice == 0) {
-          Serial.print("Yes - filling amount:");
-          scale.power_up();
-          filling = 0;
-          menu_index = 11;
-        }
-        else if (choice == 1) {
-          menu_index = 2;
-        }
-      }
       else if (menu_index == 8) {  // calibration
         if (calibration == 1) {
           calibration = 2;
@@ -632,6 +723,34 @@ void IRAM_ATTR switch_encoder() {
           scale.power_down();
         }
       }
+      else if (menu_index == 9) {  //control_menu
+        switch (selected_item)
+        {
+        case 0:
+          menu_index = 1;
+          break;
+        case 1:
+          //servo control
+          break;
+        case 2:
+          selected_item = 0;
+          border_index = 0;
+          start_index = 0;
+          menu_index = 12;
+          break;
+        }
+      }
+      else if (menu_index == 10) {  // confirmation
+        if (choice == 0) {
+          Serial.print("Yes - filling amount:");
+          scale.power_up();
+          filling = 0;
+          menu_index = 11;
+        }
+        else if (choice == 1) {
+          menu_index = 2;
+        }
+      }
       else if (menu_index == 11) {  // filling
         if (filling == 0) {
           filling = 1;
@@ -639,6 +758,18 @@ void IRAM_ATTR switch_encoder() {
         else if (filling == 2) {
           menu_index = 2;
           filling = 0;
+        }
+      }
+      else if (menu_index == 12) {  // language_menu
+        if (selected_item != 0) {
+          pref.begin("storage", false);
+          pref.putInt("language", selected_item-1);
+          pref.end();
+          language = selected_item-1;
+          menu_index = 9;
+        }
+        else {
+          menu_index = 9;
         }
       }
   }
@@ -698,15 +829,15 @@ void main_menu()
   u8g2.drawXBMP(0, 22, 128, 21, epd_bitmap_sel_border);
 
   u8g2.setFont(u8g2_font_helvR12_tr);
-  u8g2.drawStr(25, 15, menu_items[item_sel_previous]);
+  u8g2.drawStr(25, 15, menu_items[language][item_sel_previous]);
   u8g2.drawXBMP(4,2,16,16,bitmap_icons[item_sel_previous][0]);
 
   u8g2.setFont(u8g2_font_helvB12_tr); 
-  u8g2.drawStr(25, 15+20+2, menu_items[item_selected]);
+  u8g2.drawStr(25, 15+20+2, menu_items[language][item_selected]);
   u8g2.drawXBMP(4,24,16,16,bitmap_icons[item_selected][item_index]);
 
   u8g2.setFont(u8g2_font_helvR12_tr); 
-  u8g2.drawStr(25, 15+20+20+2+2, menu_items[item_sel_next]);
+  u8g2.drawStr(25, 15+20+20+2+2, menu_items[language][item_sel_next]);
   u8g2.drawXBMP(4,46,16,16,bitmap_icons[item_sel_next][0]);
 
   u8g2.sendBuffer();
@@ -723,7 +854,7 @@ void honey_fill_menu()
   u8g2.setFont(u8g2_font_6x10_tr);
 
   for (int h = 0; h < 5; h++){
-    u8g2.drawStr(15, 11+h*12, honey_menu_items[h + start_index]);
+    u8g2.drawStr(15, 11+h*12, honey_menu_items[language][h + start_index]);
     if (h+start_index == 0) {
       u8g2.setFont(u8g2_font_unifont_t_symbols);
       u8g2.drawUTF8(4, 12+h*12, "←");
@@ -789,7 +920,7 @@ void honey_preset_menu()
   u8g2.setFont(u8g2_font_6x10_tr);
 
   for (int h = 0; h < 4; h++){
-    u8g2.drawStr(15, 11+h*12, preset_menu_items[h + start_index]);
+    u8g2.drawStr(15, 11+h*12, preset_menu_items[language][h + start_index]);
     if (h+start_index == 0) {
       u8g2.setFont(u8g2_font_unifont_t_symbols);
       u8g2.drawUTF8(4, 12+h*12, "←");
@@ -1042,6 +1173,42 @@ void fill_honey() {
   }
 }
 
+void control_menu() {
+  u8g2.clearBuffer();
+
+  u8g2.drawXBMP(0, 2+border_index*12, 128, 12, epd_bitmap_border);
+
+  u8g2.setFont(u8g2_font_6x10_tr);
+
+  for (int h = 0; h < 3; h++){
+    u8g2.drawStr(15, 11+h*12, control_menu_items[language][h + start_index]);
+    if (h+start_index == 0) {
+      u8g2.setFont(u8g2_font_unifont_t_symbols);
+      u8g2.drawUTF8(4, 12+h*12, "←");
+      u8g2.setFont(u8g2_font_6x10_tr);
+    }
+  }
+  u8g2.sendBuffer();
+}
+
+void language_change() {
+  u8g2.clearBuffer();
+
+  u8g2.drawXBMP(0, 2+border_index*12, 128, 12, epd_bitmap_border);
+
+  u8g2.setFont(u8g2_font_6x10_tr);
+
+  for (int h = 0; h < 3; h++){
+    u8g2.drawStr(15, 11+h*12, language_menu_items[h + start_index]);
+    if (h+start_index == 0) {
+      u8g2.setFont(u8g2_font_unifont_t_symbols);
+      u8g2.drawUTF8(4, 12+h*12, "←");
+      u8g2.setFont(u8g2_font_6x10_tr);
+    }
+  }
+  u8g2.sendBuffer();
+}
+
 void setup() {
   //encoder setup
   pinMode(outputA,INPUT_PULLUP);
@@ -1074,6 +1241,7 @@ void setup() {
   preset1 = pref.getInt("preset1", 1000);
   preset2 = pref.getInt("preset2", 700);
   preset3 = pref.getInt("preset3", 350);
+  language = pref.getInt("language", 0);
 
   Serial.println(preset1);
   Serial.println(preset2);
@@ -1085,8 +1253,9 @@ void setup() {
   Serial.print("Calibration: ");
   Serial.println(scale.get_scale());
 
-  scale.set_offset(-99074);
-  scale.set_scale(385.748016);
+  scale.set_offset(-1880240); 
+  scale.set_scale(408.799988);
+
   scale.power_down();
 
   delay(500);
@@ -1128,14 +1297,16 @@ void loop() {
       calibrate();
       break;
     case 9:
-      Serial.println(menu_index);
-      menu_index = 1;
+      control_menu();
       break;
     case 10:
       confirm(input_weight);
       break;
     case 11:
       fill_honey();
+      break;
+    case 12:
+      language_change();
       break;
   }
 }
