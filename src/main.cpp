@@ -538,6 +538,14 @@ void encoder_change(int value) {
     }
     servo.write(servo_angle);
   }
+  else if (menu_index == 14) {
+    if (value >= 1) {
+      choice = 1;
+    }
+    else if (value <= -1) {
+      choice = 0;
+    }
+  }
 }
 
 void read_encoder() { //nepouziva sa
@@ -789,6 +797,11 @@ void IRAM_ATTR switch_encoder() {
           filling = 0;
           servo.write(0);
         }
+        else if (filling == 3) {
+          servo.write(0);
+          choice = 1;
+          menu_index = 14;
+        }
       }
       else if (menu_index == 12) {  // language_menu
         if (selected_item != 0) {
@@ -806,6 +819,15 @@ void IRAM_ATTR switch_encoder() {
         servo_angle = 0;
         servo.write(0);
         menu_index = 9;
+      }
+      else if (menu_index == 14) {  // puase_fill
+        if (choice == 1) {
+          menu_index = 2;
+        }
+        else if (choice == 0) {
+          filling = 3;
+          menu_index = 11;
+        }
       }
   }
 
@@ -1290,6 +1312,30 @@ void servo_control() {
   u8g2.sendBuffer();
 }
 
+void pause_fill() {
+  u8g2.clearBuffer();
+
+  u8g2.setFont(u8g2_font_6x10_tr);
+  if (language == 0) {
+    u8g2.drawStr(7, 15, "Plnenie pozastavene");
+    u8g2.drawStr(31, 25, "Pokracovat?");
+
+    u8g2.drawStr(25, 50, "Ano");
+    u8g2.drawStr(87, 50, "Nie");
+  }
+  else if (language == 1) {
+  u8g2.drawStr(25, 15, "Filling paused");
+  u8g2.drawStr(40, 25, "Continue?");
+  
+  u8g2.drawStr(25, 50, "Yes");
+  u8g2.drawStr(90, 50, "No");
+  }
+
+  u8g2.drawFrame(20+62*choice, 40, 27, 13);
+
+  u8g2.sendBuffer();
+}
+
 void setup() {
   //encoder setup
   pinMode(outputA,INPUT_PULLUP);
@@ -1339,6 +1385,8 @@ void setup() {
 
   scale.power_down();
 
+  servo.write(0);
+
   delay(500);
 
 }
@@ -1384,6 +1432,7 @@ void loop() {
       confirm(input_weight);
       break;
     case 11:
+      if (!scale.is_ready()) scale.power_up();
       fill_honey();
       break;
     case 12:
@@ -1391,6 +1440,10 @@ void loop() {
       break;
     case 13:
       servo_control();
+      break;
+    case 14:
+      if (scale.is_ready()) scale.power_down();
+      pause_fill();
       break;
   }
 }
