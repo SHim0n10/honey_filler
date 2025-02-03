@@ -220,7 +220,7 @@ const unsigned char* bitmap_icons[4] [5] = {
 
 int preset1, preset2, preset3, language;
 
-//pocet jazykov
+//num of languages
 const int LANGUAGES = 2;
 
 //confirmation
@@ -241,6 +241,8 @@ unsigned long dt = 500;
 int aState;
 int aLastState;
 int counter = 0; 
+
+int16_t servo_angle = 0;
 
 
 uint8_t calibration = 0;
@@ -509,6 +511,33 @@ void encoder_change(int value) {
       }
     }
   }
+  else if (menu_index == 13) {
+    if (value >= 1) {
+      if (servo_angle+value*2 <= 0) {
+        servo_angle = 0;
+      }
+      else if (servo_angle+value*2 >= 180) {
+        servo_angle = 180;
+      }
+      else {
+        servo_angle += value*2;
+      }
+    }
+    else if (value <= -1) {
+      if (servo_angle > 0) {
+        if (servo_angle+value*2 <= 0) {
+          servo_angle = 0;
+        }
+        else {
+          servo_angle += value*2;
+        }
+      }
+      else if (servo_angle < 0) {
+        servo_angle = 0;
+      }
+    }
+    servo.write(servo_angle);
+  }
 }
 
 void read_encoder() { //nepouziva sa
@@ -597,13 +626,12 @@ void read_encoder1() {
 
 }
 
-// change of interface logic
+// button
 void IRAM_ATTR switch_encoder() {
 
   unsigned long currentMillis = millis();
   if (currentMillis - lastDebounceTime >= 500) {
     lastDebounceTime = currentMillis;
-  
  
       if (menu_index == 0) {  // digital_scale
         
@@ -668,7 +696,6 @@ void IRAM_ATTR switch_encoder() {
         else {
           choice = 1;
           menu_index = 10;
-          Serial.println(input_weight);
         }
       }
       else if (menu_index == 4) {  // honey_fill_menu
@@ -693,8 +720,11 @@ void IRAM_ATTR switch_encoder() {
       else if (menu_index == 5) {  // preset1
         preset1 = input_weight;
         pref.begin("storage", false);
+        delay(100);
         pref.putInt("preset1", input_weight);
+        delay(100);
         pref.end();
+        delay(100);
         menu_index = 4;
       }
       else if (menu_index == 6) {  // preset2
@@ -730,7 +760,7 @@ void IRAM_ATTR switch_encoder() {
           menu_index = 1;
           break;
         case 1:
-          //servo control
+          menu_index = 13;
           break;
         case 2:
           selected_item = 0;
@@ -742,7 +772,6 @@ void IRAM_ATTR switch_encoder() {
       }
       else if (menu_index == 10) {  // confirmation
         if (choice == 0) {
-          Serial.print("Yes - filling amount:");
           scale.power_up();
           filling = 0;
           menu_index = 11;
@@ -758,6 +787,7 @@ void IRAM_ATTR switch_encoder() {
         else if (filling == 2) {
           menu_index = 2;
           filling = 0;
+          servo.write(0);
         }
       }
       else if (menu_index == 12) {  // language_menu
@@ -771,6 +801,11 @@ void IRAM_ATTR switch_encoder() {
         else {
           menu_index = 9;
         }
+      }
+      else if (menu_index == 13) {  // servo_control
+        servo_angle = 0;
+        servo.write(0);
+        menu_index = 9;
       }
   }
 
@@ -787,7 +822,6 @@ void home()
     oldTime = currentMillis;
   
   //vypisovanie hodnoty z vahy
-  Serial.println(scale.get_units(1));
   weight = scale.get_units(1);
   u8g2.setFont(u8g2_font_helvB24_tr);
   }
@@ -844,7 +878,6 @@ void main_menu()
   
 }
 
-
 void honey_fill_menu()
 {
   u8g2.clearBuffer();
@@ -891,10 +924,10 @@ void honey_fill_custom()
   u8g2.clearBuffer();
 
   u8g2.setFont(u8g2_font_6x10_tr);
-  u8g2.drawStr(16 ,15, "Rotate to change");
+  if (language == 0) u8g2.drawStr(25 ,15, "Zmente tocenim");
+  else if (language == 1) u8g2.drawStr(16 ,15, "Rotate to change");
 
   u8g2.setFont(u8g2_font_fub20_tr);
-  // const char* text = "780 g";
   char text[8];
   snprintf(text, sizeof(text), "%d g", input_weight);
 
@@ -904,7 +937,9 @@ void honey_fill_custom()
   u8g2.drawStr(xPos, 42, text);
 
   u8g2.setFont(u8g2_font_5x8_tr);
-  u8g2.drawStr(41 ,58, "O to exit");
+  if (language == 0) u8g2.drawStr(32 ,58, "O na koniec");
+  else if (language == 1) u8g2.drawStr(41 ,58, "O to exit");
+  
 
   u8g2.sendBuffer();
 
@@ -953,10 +988,11 @@ void change_presets() {
   u8g2.clearBuffer();
 
   u8g2.setFont(u8g2_font_6x10_tr);
-  u8g2.drawStr(16 ,15, "Rotate to change");
+
+  if (language == 0) u8g2.drawStr(25 ,15, "Zmente tocenim");
+  else if (language == 1) u8g2.drawStr(16 ,15, "Rotate to change");
 
   u8g2.setFont(u8g2_font_fub20_tr);
-  // const char* text = "780 g";
   char text[8];
   snprintf(text, sizeof(text), "%d g", input_weight);
 
@@ -966,7 +1002,8 @@ void change_presets() {
   u8g2.drawStr(xPos, 42, text);
 
   u8g2.setFont(u8g2_font_5x8_tr);
-  u8g2.drawStr(32 ,58, "click to save");
+  if (language == 0) u8g2.drawStr(14, 58, "kliknite na ulozenie");
+  else if (language == 1) u8g2.drawStr(32 ,58, "click to save");
 
   u8g2.sendBuffer();
 
@@ -978,62 +1015,59 @@ void calibrate()
   if (calibration == 0) {
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_6x10_tr);
-    u8g2.drawStr(14 ,15, "Remove all weight");
-    u8g2.drawStr(14 ,25, "from the loadcell.");
-    u8g2.drawStr(14 ,50, "press to continue");
+    if (language == 0) {
+      u8g2.drawStr(19, 15, "Odstrante zataz");
+      u8g2.drawStr(11, 25, "z vahoveho senzora");
+      u8g2.drawStr(13, 50, "stlacte na pokrac.");
+    }
+    else if (language == 1) {
+      u8g2.drawStr(14 ,15, "Remove all weight");
+      u8g2.drawStr(14 ,25, "from the loadcell.");
+      u8g2.drawStr(14 ,50, "press to continue");
+    }
     u8g2.sendBuffer();
 
     scale.power_up();
-    Serial.println("\n\nCALIBRATION\n===========");
-    Serial.println("remove all weight from the loadcell");
-    Serial.println("and press button\n");
     calibration = 1;
   }
   //wait for button press
   else if (calibration == 2) {
-    Serial.println("Determine zero weight offset");
+    // determine zero offset
     scale.tare(5);
     offset = scale.get_offset();
 
-    Serial.print("OFFSET: ");
-    Serial.println(offset);
-    Serial.println();
-    Serial.println("place a weight on the loadcell");
-    Serial.println("enter the weight in (whole) grams and press enter");
     input_weight = 0;
     calibration = 3;
   }
   else if (calibration == 3) {
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_6x10_tr);
-    u8g2.drawStr(25 ,15, "Place a weight");
-    u8g2.drawStr(20 ,25, "on the loadcell");
-    u8g2.drawStr(10 ,35, "and set the weight:");
+    if (language == 0) {
+      u8g2.drawStr(16, 15, "Umiestnite zataz");
+      u8g2.drawStr(7, 25, "na snimac zatazenia");
+      u8g2.drawStr(16, 35, "a nastavte vahu:");
+    }
+    else if (language == 1) {
+      u8g2.drawStr(25 ,15, "Place a weight");
+      u8g2.drawStr(20 ,25, "on the loadcell");
+      u8g2.drawStr(10 ,35, "and set the weight:");
+    }
     char text[8];
     snprintf(text, sizeof(text), "%d g", input_weight);
     u_int16_t xPos = 80 - u8g2.getStrWidth(text);
     u8g2.drawStr(xPos ,45, text);
-    u8g2.drawStr(14 ,55, "press to continue");
+    if (language == 0) u8g2.drawStr(10, 55, "stlacte na pokrac.");
+    else if (language == 1) u8g2.drawStr(14 ,55, "press to continue");
     u8g2.sendBuffer();
   }
   //wait for weight input (button press)
-  else if (calibration == 4) {
-    Serial.print("WEIGHT: ");
-    
+  else if (calibration == 4) {    
     scale.calibrate_scale(input_weight, 5);
-    float myscale = scale.get_scale();
+    // float myscale = scale.get_scale();
+    // Serial.println(myscale, 6);
+    // Serial.println(offset);
+    // Serial.println(myscale, 6);
 
-    Serial.print("SCALE:  ");
-    Serial.println(myscale, 6);
-
-    Serial.print("\nuse scale.set_offset(");
-    Serial.print(offset);
-    Serial.print("); and scale.set_scale(");
-    Serial.print(myscale, 6);
-    Serial.print(");\n");
-    Serial.println("in the setup of your project");
-
-    Serial.println("\n\n");
     scale.power_down();
     calibration = 0;
     menu_index = 1;
@@ -1045,7 +1079,8 @@ void confirm(int input) {
   u8g2.clearBuffer();
 
   u8g2.setFont(u8g2_font_6x10_tr);
-  u8g2.drawStr(25, 15, "Are you sure?");
+  if (language == 0) u8g2.drawStr(28, 15, "Ste si isti?");
+  else if (language == 1) u8g2.drawStr(25, 15, "Are you sure?");
 
 
   char text[8];
@@ -1055,9 +1090,14 @@ void confirm(int input) {
   int xPos = 80 - textWidth;
   u8g2.drawStr(xPos, 32, text);
 
-  u8g2.drawStr(25, 50, "Yes");
-
-  u8g2.drawStr(90, 50, "No");
+  if (language == 0) {
+    u8g2.drawStr(25, 50, "Ano");
+    u8g2.drawStr(87, 50, "Nie");
+  }
+  else if (language == 1) {
+    u8g2.drawStr(25, 50, "Yes");
+    u8g2.drawStr(90, 50, "No");
+  }
 
   u8g2.drawFrame(20+62*choice, 40, 27, 13);
 
@@ -1068,9 +1108,16 @@ void fill_honey() {
   if (filling == 0) {
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_6x10_tr);
-    u8g2.drawStr(26, 15, "Please remove");
-    u8g2.drawStr(33, 25, "any weight");
-    u8g2.drawStr(15, 50, "press to continue");
+    if (language == 0) {
+      u8g2.drawStr(13, 15, "Prosim odstrante");
+      u8g2.drawStr(25, 25, "vsetku zataz");
+      u8g2.drawStr(10, 50, "stlacte na pokrac.");
+    }
+    else if (language == 1) {
+      u8g2.drawStr(26, 15, "Please remove");
+      u8g2.drawStr(33, 25, "any weight");
+      u8g2.drawStr(15, 50, "press to continue");
+    }
     u8g2.sendBuffer();
   }
   else if (filling == 1) {
@@ -1081,13 +1128,20 @@ void fill_honey() {
   else if (filling == 2) {
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_6x10_tr);
-    u8g2.drawStr(19, 15, "To start filling");
-    u8g2.drawStr(10, 25, "place the container");
-    u8g2.drawStr(30, 35, "on the scale");
-
-    u8g2.setFont(u8g2_font_5x8_tr);
-    u8g2.drawStr(32, 50, "press to exit");
-
+    if (language == 0) {
+      u8g2.drawStr(1, 15, "Pre spustenie plnenia");
+      u8g2.drawStr(19, 25, "polozte nadobu");
+      u8g2.drawStr(43, 35, "na vahu");
+      u8g2.setFont(u8g2_font_5x8_tr);
+      u8g2.drawStr(19, 50, "stlacte na ukonc.");
+    }
+    else if (language == 1) {
+      u8g2.drawStr(19, 15, "To start filling");
+      u8g2.drawStr(10, 25, "place the container");
+      u8g2.drawStr(30, 35, "on the scale");
+      u8g2.setFont(u8g2_font_5x8_tr);
+      u8g2.drawStr(32, 50, "press to exit");
+    }
     u8g2.sendBuffer();
 
     if (scale.is_ready()) {
@@ -1096,7 +1150,6 @@ void fill_honey() {
     if (weight < 0) {
       weight = 0;
     }
-    Serial.println(weight);
     if (weight > 100)
     {
       delay(1000);
@@ -1121,24 +1174,21 @@ void fill_honey() {
 
     if (fill_percentage < 80) {
       servo.write(180);
-      Serial.println("servo at 100 %");
     }
     else if (fill_percentage < 90) {
       servo.write(65);
-      Serial.println("servo at 35 %");
     }
     else if (fill_percentage < 100) {
       servo.write(20);
-      Serial.println("servo at 10 %");
     }
     else {
       servo.write(0);
-      Serial.println("servo at 0 %");
     }
 
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_6x10_tr);
-    u8g2.drawStr(44, 15, "Filling");
+    if (language == 0) u8g2.drawStr(43, 15, "Plnenie");
+    else if (language == 1) u8g2.drawStr(44, 15, "Filling");
     char text[8];
     snprintf(text, sizeof(text), "%d g", actual_weight);
     u_int8_t xPos = 78 - u8g2.getStrWidth(text);
@@ -1162,8 +1212,14 @@ void fill_honey() {
   if (filling == 4) {
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_6x10_tr);
-    u8g2.drawStr(18, 15, "Filling complete");
-    u8g2.drawStr(12, 50, "take the container");
+    if (language == 0) {
+      u8g2.drawStr(10, 15, "Plnenie dokoncene");
+      u8g2.drawStr(19, 50, "vezmite nadobu");
+    }
+    else if (language == 1) {
+      u8g2.drawStr(18, 15, "Filling complete");
+      u8g2.drawStr(12, 50, "take the container");
+    }
     u8g2.sendBuffer();
 
     if (scale.get_units(2) < 50) {
@@ -1209,6 +1265,31 @@ void language_change() {
   u8g2.sendBuffer();
 }
 
+void servo_control() {
+  u8g2.clearBuffer();
+
+  u8g2.setFont(u8g2_font_6x10_tr);
+  if (language == 0) u8g2.drawStr(18 ,15, "Ovladanie servo");
+  else if (language == 1) u8g2.drawStr(25 ,15, "Servo control");
+
+  u8g2.setFont(u8g2_font_fub20_tr);
+  char text[8];
+  snprintf(text, sizeof(text), "%d °", servo_angle);
+
+  
+  int textWidth = u8g2.getStrWidth(text);
+  int xPos = 92 - textWidth;
+  u8g2.drawStr(xPos, 42, text);
+  u8g2.drawCircle(xPos+textWidth, 22, 2);
+
+  u8g2.setFont(u8g2_font_5x8_tr);
+  if (language == 0) u8g2.drawStr(20 ,58, "kliknite na koniec");
+  else if (language == 1) u8g2.drawStr(32 ,58, "click to exit");
+  
+
+  u8g2.sendBuffer();
+}
+
 void setup() {
   //encoder setup
   pinMode(outputA,INPUT_PULLUP);
@@ -1236,22 +1317,22 @@ void setup() {
   u8g2.sendBuffer();
   oldTime = millis();
 
-  pref.begin("storage", false);  // Namespace: "storage"
+  pref.begin("storage", false);  // namespace: "storage"
 
   preset1 = pref.getInt("preset1", 1000);
   preset2 = pref.getInt("preset2", 700);
   preset3 = pref.getInt("preset3", 350);
   language = pref.getInt("language", 0);
 
-  Serial.println(preset1);
-  Serial.println(preset2);
-  Serial.println(preset3);
+  // Serial.println(preset1);
+  // Serial.println(preset2);
+  // Serial.println(preset3);
 
   pref.end();
 
   scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
-  Serial.print("Calibration: ");
-  Serial.println(scale.get_scale());
+  // Serial.print("Calibration: ");
+  // Serial.println(scale.get_scale());
 
   scale.set_offset(-1880240); 
   scale.set_scale(408.799988);
@@ -1307,6 +1388,9 @@ void loop() {
       break;
     case 12:
       language_change();
+      break;
+    case 13:
+      servo_control();
       break;
   }
 }
