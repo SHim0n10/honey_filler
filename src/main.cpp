@@ -17,6 +17,7 @@ HX711 scale;
 #define outputSwitch 23
 
 #define servoPin 27
+#define buzzerPin 18
 
 Servo servo;
 
@@ -242,6 +243,8 @@ int aState;
 int aLastState;
 int counter = 0; 
 
+u_int8_t buzzer = 0;
+
 int16_t servo_angle = 0;
 
 
@@ -249,6 +252,7 @@ uint8_t calibration = 0;
 int offset = 0;
 
 uint8_t filling = 0;
+unsigned int fill_counter = 0;
 
 //list of items menu attributes
 int8_t selected_item = 0;
@@ -317,6 +321,7 @@ char control_menu_items [LANGUAGES][CONTROL_ITEMS_NUM] [CONTROL_ITEMS_ITEM_LENGT
   { "Language" }}
 };
 
+//Language menu
 const int LANGUAGE_ITEMS_NUM = 3;
 const int LANGUAGE_ITEMS_ITEM_LENGTH = 10;
 
@@ -326,6 +331,16 @@ char language_menu_items [LANGUAGE_ITEMS_NUM] [LANGUAGE_ITEMS_ITEM_LENGTH] = {
   { "English" }
 };
 
+//Scale menu
+const int SCALE_ITEMS_NUM = 2;
+const int SCALE_ITEMS_ITEM_LENGTH = 10;
+
+char scale_menu_items [LANGUAGES][SCALE_ITEMS_NUM] [SCALE_ITEMS_ITEM_LENGTH] = {
+  {{ "Menu" },
+  { "Vynulovat" }},
+  {{ "Menu" },
+  { "Tare" }}
+};
 
 void encoder_change(int value) {
   if (menu_index == 1) {  // main_menu
@@ -546,6 +561,20 @@ void encoder_change(int value) {
       choice = 0;
     }
   }
+  else if (menu_index == 15) {
+    if (value >= 1) {
+      if (selected_item+1<SCALE_ITEMS_NUM) { // pokial nie je na konci
+        border_index++;
+        selected_item++;
+      }
+    }
+    else if (value <= -1) {
+      if (selected_item-1>=0) { // pokial nie je na zaciatku
+          border_index--;
+          selected_item--;
+      }
+    }
+  }
 }
 
 void read_encoder() { //nepouziva sa
@@ -642,10 +671,9 @@ void IRAM_ATTR switch_encoder() {
     lastDebounceTime = currentMillis;
  
       if (menu_index == 0) {  // digital_scale
-        
         delay(200);
-        
-        menu_index = 1;
+
+        menu_index = 15;
       }
       else if (menu_index == 1) {  // main_menu
         switch(item_selected) {
@@ -781,6 +809,7 @@ void IRAM_ATTR switch_encoder() {
       else if (menu_index == 10) {  // confirmation
         if (choice == 0) {
           scale.power_up();
+          fill_counter = 0;
           filling = 0;
           menu_index = 11;
         }
@@ -829,9 +858,22 @@ void IRAM_ATTR switch_encoder() {
           menu_index = 11;
         }
       }
+      else if (menu_index == 15) {  // scale_menu
+        switch (selected_item)
+        {
+        case 0:
+          delay(200);
+          
+          menu_index = 1;
+          break;
+        case 1:
+          menu_index = 16;
+          break;
+        }
+      }
   }
 
-} 
+}
 
 void home()
 {
@@ -1085,10 +1127,10 @@ void calibrate()
   //wait for weight input (button press)
   else if (calibration == 4) {    
     scale.calibrate_scale(input_weight, 5);
-    // float myscale = scale.get_scale();
-    // Serial.println(myscale, 6);
-    // Serial.println(offset);
-    // Serial.println(myscale, 6);
+    float myscale = scale.get_scale();
+    Serial.println(myscale, 6);
+    Serial.println(offset);
+    Serial.println(myscale, 6);
 
     scale.power_down();
     calibration = 0;
@@ -1148,6 +1190,7 @@ void fill_honey() {
     filling = 2;
   }
   else if (filling == 2) {
+    buzzer = 0;
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_6x10_tr);
     if (language == 0) {
@@ -1164,6 +1207,12 @@ void fill_honey() {
       u8g2.setFont(u8g2_font_5x8_tr);
       u8g2.drawStr(32, 50, "press to exit");
     }
+    //fill_counter
+    u8g2.setFont(u8g2_font_5x7_tn);
+    char text[8];
+    snprintf(text, sizeof(text), "%d", fill_counter);
+    u8g2.drawStr(2, 62, text);
+
     u8g2.sendBuffer();
 
     if (scale.is_ready()) {
@@ -1172,7 +1221,7 @@ void fill_honey() {
     if (weight < 0) {
       weight = 0;
     }
-    if (weight > 100)
+    if (weight > 50)
     {
       delay(1000);
       scale.tare(5);
@@ -1225,13 +1274,21 @@ void fill_honey() {
     xPos = 75 - u8g2.getStrWidth(text);
     u8g2.drawStr(xPos, 58, text);
 
+    //fill_counter
+    u8g2.setFont(u8g2_font_5x7_tn);
+    char text1[8];
+    snprintf(text1, sizeof(text1), "%d", fill_counter);
+    u8g2.drawStr(2, 62, text1);
+
     u8g2.sendBuffer();
     if (fill_percentage >= 100) {
       delay(1000);
       filling = 4;
+      fill_counter++;
     }
   }
   if (filling == 4) {
+
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_6x10_tr);
     if (language == 0) {
@@ -1242,8 +1299,21 @@ void fill_honey() {
       u8g2.drawStr(18, 15, "Filling complete");
       u8g2.drawStr(12, 50, "take the container");
     }
+
+    //fill_counter
+    u8g2.setFont(u8g2_font_5x7_tn);
+    char text1[8];
+    snprintf(text1, sizeof(text1), "%d", fill_counter);
+    u8g2.drawStr(2, 62, text1);
+
     u8g2.sendBuffer();
 
+    if (buzzer == 0) {
+      digitalWrite(buzzerPin, HIGH);
+      delay(1000);
+      digitalWrite(buzzerPin, LOW);
+      buzzer = 1;
+    }
     if (scale.get_units(2) < 50) {
       delay(500);
       filling = 1;
@@ -1336,11 +1406,31 @@ void pause_fill() {
   u8g2.sendBuffer();
 }
 
+void scale_menu() {
+  u8g2.clearBuffer();
+
+  u8g2.drawXBMP(0, 2+border_index*12, 128, 12, epd_bitmap_border);
+
+  u8g2.setFont(u8g2_font_6x10_tr);
+
+  for (int h = 0; h < 2; h++){
+    u8g2.drawStr(15, 11+h*12, scale_menu_items[language][h + start_index]);
+    if (h+start_index == 0) {
+      u8g2.setFont(u8g2_font_unifont_t_symbols);
+      u8g2.drawUTF8(4, 12+h*12, "←");
+      u8g2.setFont(u8g2_font_6x10_tr);
+    }
+  }
+  u8g2.sendBuffer();
+}
+
 void setup() {
   //encoder setup
   pinMode(outputA,INPUT_PULLUP);
   pinMode(outputB,INPUT_PULLUP);
   pinMode(outputSwitch, INPUT_PULLUP);
+  pinMode(buzzerPin, OUTPUT);
+  digitalWrite(buzzerPin, LOW);
   // attachInterrupt(digitalPinToInterrupt(outputA), read_encoder, CHANGE);
   // attachInterrupt(digitalPinToInterrupt(outputB), read_encoder, CHANGE);
   attachInterrupt(digitalPinToInterrupt(outputA), read_encoder1, CHANGE);
@@ -1380,8 +1470,8 @@ void setup() {
   // Serial.print("Calibration: ");
   // Serial.println(scale.get_scale());
 
-  scale.set_offset(-1880240); 
-  scale.set_scale(408.799988);
+  scale.set_offset(-357691); 
+  scale.set_scale(400.464050);
 
   scale.power_down();
 
@@ -1444,6 +1534,14 @@ void loop() {
     case 14:
       if (scale.is_ready()) scale.power_down();
       pause_fill();
+      break;
+    case 15:
+      scale_menu();
+      break;
+    case 16:
+      scale.tare(5);
+      delay(100);
+      menu_index = 0;
       break;
   }
 }
