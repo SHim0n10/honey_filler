@@ -3,20 +3,21 @@
   "author": "高小",
   "editor": "wokwi",
   "parts": [
-    { "type": "wokwi-esp32-devkit-v1", "id": "esp", "top": -129.7, "left": 52.6, "attrs": {} },
     {
-      "type": "wokwi-ky-040",
-      "id": "encoder1",
-      "top": 80.6,
-      "left": 228.3,
-      "rotate": 270,
+      "type": "wokwi-breadboard-mini",
+      "id": "bb1",
+      "top": -75.9,
+      "left": -265.3,
+      "rotate": 90,
       "attrs": {}
     },
+    { "type": "wokwi-esp32-devkit-v1", "id": "esp", "top": -129.7, "left": 52.6, "attrs": {} },
+    { "type": "wokwi-ky-040", "id": "encoder1", "top": -257.5, "left": -154.4, "attrs": {} },
     {
       "type": "wokwi-ssd1306",
       "id": "ssd1",
       "top": 121.9,
-      "left": 78.7,
+      "left": 145.9,
       "attrs": { "i2c-address": "0x3c" }
     },
     {
@@ -29,40 +30,41 @@
     {
       "type": "wokwi-servo",
       "id": "servo1",
-      "top": 121,
-      "left": -123.8,
+      "top": 101.8,
+      "left": -133.4,
       "rotate": 90,
       "attrs": {}
     },
     {
       "type": "wokwi-buzzer",
       "id": "bz1",
-      "top": -151.2,
-      "left": 289.8,
+      "top": -141.6,
+      "left": 337.8,
       "attrs": { "volume": "0.1" }
     }
   ],
   "connections": [
     [ "esp:TX0", "$serialMonitor:RX", "", [] ],
     [ "esp:RX0", "$serialMonitor:TX", "", [] ],
-    [ "encoder1:VCC", "esp:3V3", "red", [ "h0.4", "v-48" ] ],
-    [ "encoder1:GND", "esp:GND.1", "black", [ "h0.8", "v-57.5" ] ],
-    [ "encoder1:DT", "esp:D32", "magenta", [ "h0.1", "v-124.7" ] ],
-    [ "encoder1:CLK", "esp:D33", "green", [ "v-201.6", "h-220.8", "v96" ] ],
-    [ "ssd1:CLK", "esp:D22", "green", [ "v0" ] ],
-    [ "ssd1:DATA", "esp:D21", "green", [ "v-38.4", "h67.2", "v-162.8" ] ],
-    [ "ssd1:GND", "esp:GND.2", "black", [ "v-18.7", "h19.4", "v-47.9" ] ],
-    [ "ssd1:VIN", "esp:VIN", "red", [ "v-28.8", "h19.8", "v-28.8" ] ],
-    [ "encoder1:SW", "esp:D23", "green", [ "v0" ] ],
-    [ "cell1:GND", "esp:GND.2", "black", [ "h-134.4", "v268.5" ] ],
-    [ "cell1:VCC", "esp:3V3", "red", [ "h96", "v220.8", "h-48", "v28.8" ] ],
+    [ "encoder1:DT", "esp:D32", "magenta", [ "v0.1", "h28.8", "v124.9" ] ],
+    [ "ssd1:CLK", "esp:D22", "cyan", [ "v0" ] ],
+    [ "ssd1:DATA", "esp:D21", "magenta", [ "v-38.4", "h48", "v-201.2" ] ],
+    [ "ssd1:VIN", "esp:VIN", "red", [ "v-28.8", "h-191.4", "v-76.8" ] ],
+    [ "cell1:VCC", "esp:3V3", "red", [ "v48", "h96", "v201.6" ] ],
     [ "cell1:DT", "esp:D26", "blue", [ "h-105.6", "v210.8" ] ],
     [ "cell1:SCK", "esp:D25", "limegreen", [ "h-96", "v18.4" ] ],
-    [ "servo1:PWM", "esp:D27", "orange", [ "v0" ] ],
+    [ "servo1:PWM", "esp:D27", "orange", [ "v-96", "h115" ] ],
     [ "servo1:V+", "esp:VIN", "red", [ "v0" ] ],
-    [ "servo1:GND", "esp:GND.2", "black", [ "v0" ] ],
-    [ "bz1:1", "esp:GND.2", "black", [ "v0" ] ],
-    [ "bz1:2", "esp:D18", "gold", [ "v0" ] ]
+    [ "bz1:2", "esp:D18", "gold", [ "v0" ] ],
+    [ "cell1:GND", "bb1:1t.e", "black", [ "v-38.7", "h-307.2" ] ],
+    [ "bb1:1t.a", "esp:GND.2", "black", [ "v-19.2", "h76.8", "v124.9" ] ],
+    [ "servo1:GND", "bb1:1t.b", "black", [ "v-192", "h-115.2" ] ],
+    [ "bz1:1", "esp:GND.1", "black", [ "v0" ] ],
+    [ "ssd1:GND", "esp:GND.1", "black", [ "v0" ] ],
+    [ "encoder1:CLK", "esp:D33", "cyan", [ "h19.2", "v144" ] ],
+    [ "encoder1:GND", "bb1:1t.c", "black", [ "v39.2", "h-124.8" ] ],
+    [ "encoder1:VCC", "cell1:VCC", "red", [ "h0" ] ],
+    [ "encoder1:SW", "esp:D23", "#8f4814", [ "h38.4", "v76.9", "h153.6", "v9.6" ] ]
   ],
   "dependencies": {}
 }

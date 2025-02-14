@@ -4,8 +4,6 @@
 #include <HX711.h>
 #include <ESP32Servo.h>
 
-// read data from storage
-
 Preferences pref;
 HX711 scale;
 
@@ -27,7 +25,7 @@ const int _pauseLength = 250;
 const int _fastIncrement = 4;
 /*
 
-regular weigh
+regular weight
 
 Menu: 
 (menu_index == 1)
@@ -219,7 +217,8 @@ const unsigned char* bitmap_icons[4] [5] = {
   {epd_bitmap_settings_icon1, epd_bitmap_settings_icon2}
 };
 
-int preset1, preset2, preset3, language;
+int preset1, preset2, preset3, language, offset_val;
+double scale_factor;
 
 //num of languages
 const int LANGUAGES = 2;
@@ -576,38 +575,6 @@ void encoder_change(int value) {
     }
   }
 }
-
-void read_encoder() { //nepouziva sa
-  static uint8_t old_AB = 3;
-  static int8_t encval = 0; 
-  static const int8_t enc_states[]  = {0,-1,1,0,1,0,0,-1,-1,0,0,1,0,1,-1,0};
-
-  old_AB <<=2;
-
-  if (digitalRead(outputA)) old_AB |= 0x02;
-  if (digitalRead(outputB)) old_AB |= 0x01;
-
-  encval += enc_states[( old_AB & 0x0f )];
-
-  if( encval > 3 ) {
-    int changevalue = 1;
-    if((millis() - _lastIncReadTime) < _pauseLength) {
-      changevalue = _fastIncrement * changevalue; 
-    }
-    _lastIncReadTime = millis();
-    encoder_change(changevalue);
-    encval = 0;
-  }
-  else if( encval < -3 ) {
-    int changevalue = -1;
-    if((millis() - _lastDecReadTime) < _pauseLength) {
-      changevalue = _fastIncrement * changevalue; 
-    }
-    _lastDecReadTime = millis();
-    encoder_change(changevalue);
-    encval = 0;
-  }
-} 
 
 void read_encoder1() {
   static int8_t encoder_state = 0;
@@ -1127,10 +1094,14 @@ void calibrate()
   //wait for weight input (button press)
   else if (calibration == 4) {    
     scale.calibrate_scale(input_weight, 5);
-    float myscale = scale.get_scale();
+    double myscale = scale.get_scale();
     Serial.println(myscale, 6);
     Serial.println(offset);
-    Serial.println(myscale, 6);
+
+    pref.begin("storage", false);
+    pref.putDouble("scale", myscale);
+    pref.putInt("offset", offset);
+    pref.end();
 
     scale.power_down();
     calibration = 0;
@@ -1425,14 +1396,11 @@ void scale_menu() {
 }
 
 void setup() {
-  //encoder setup
   pinMode(outputA,INPUT_PULLUP);
   pinMode(outputB,INPUT_PULLUP);
   pinMode(outputSwitch, INPUT_PULLUP);
   pinMode(buzzerPin, OUTPUT);
   digitalWrite(buzzerPin, LOW);
-  // attachInterrupt(digitalPinToInterrupt(outputA), read_encoder, CHANGE);
-  // attachInterrupt(digitalPinToInterrupt(outputB), read_encoder, CHANGE);
   attachInterrupt(digitalPinToInterrupt(outputA), read_encoder1, CHANGE);
   attachInterrupt(digitalPinToInterrupt(outputB), read_encoder1, CHANGE);
 
@@ -1442,8 +1410,6 @@ void setup() {
   servo.attach(servoPin);
 
   Serial.begin(9600);
-  // aLastState = digitalRead(35);
-  // xTaskCreatePinnedToCore(rotary_encoder_driver, "Handle encoder", 4096, NULL, 1, NULL, 1);
 
   u8g2.begin();
   u8g2.clearBuffer();
@@ -1453,25 +1419,21 @@ void setup() {
   u8g2.sendBuffer();
   oldTime = millis();
 
-  pref.begin("storage", false);  // namespace: "storage"
+  pref.begin("storage", false);
 
   preset1 = pref.getInt("preset1", 1000);
   preset2 = pref.getInt("preset2", 700);
   preset3 = pref.getInt("preset3", 350);
   language = pref.getInt("language", 0);
-
-  // Serial.println(preset1);
-  // Serial.println(preset2);
-  // Serial.println(preset3);
+  offset_val = pref.getInt("offset", -357691);
+  scale_factor = pref.getDouble("scale", 400.464050);
 
   pref.end();
 
   scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
-  // Serial.print("Calibration: ");
-  // Serial.println(scale.get_scale());
 
-  scale.set_offset(-357691); 
-  scale.set_scale(400.464050);
+  scale.set_offset(offset_val); 
+  scale.set_scale(scale_factor);
 
   scale.power_down();
 
