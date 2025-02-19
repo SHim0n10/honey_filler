@@ -527,30 +527,31 @@ void encoder_change(int value) {
   }
   else if (menu_index == 13) {
     if (value >= 1) {
-      if (servo_angle+value*2 <= 0) {
+      if (servo_angle+value <= 0) {
         servo_angle = 0;
       }
-      else if (servo_angle+value*2 >= 180) {
-        servo_angle = 180;
+      else if (servo_angle+value >= 75) {
+        servo_angle = 75;
       }
       else {
-        servo_angle += value*2;
+        servo_angle += value;
       }
     }
     else if (value <= -1) {
       if (servo_angle > 0) {
-        if (servo_angle+value*2 <= 0) {
+        if (servo_angle+value <= 0) {
           servo_angle = 0;
         }
         else {
-          servo_angle += value*2;
+          servo_angle += value;
         }
       }
       else if (servo_angle < 0) {
         servo_angle = 0;
       }
     }
-    servo.write(servo_angle);
+    int servo_angle1 = map(servo_angle, 0, 75, 32, 78);
+    servo.write(servo_angle1);
   }
   else if (menu_index == 14) {
     if (value >= 1) {
@@ -791,10 +792,10 @@ void IRAM_ATTR switch_encoder() {
         else if (filling == 2) {
           menu_index = 2;
           filling = 0;
-          servo.write(0);
+          servo.write(32);
         }
         else if (filling == 3) {
-          servo.write(0);
+          servo.write(32);
           choice = 1;
           menu_index = 14;
         }
@@ -813,7 +814,7 @@ void IRAM_ATTR switch_encoder() {
       }
       else if (menu_index == 13) {  // servo_control
         servo_angle = 0;
-        servo.write(0);
+        servo.write(30);
         menu_index = 9;
       }
       else if (menu_index == 14) {  // puase_fill
@@ -1215,16 +1216,16 @@ void fill_honey() {
     }
 
     if (fill_percentage < 80) {
-      servo.write(180);
+      servo.write(78);
     }
     else if (fill_percentage < 90) {
-      servo.write(65);
+      servo.write(68);
     }
     else if (fill_percentage < 100) {
-      servo.write(20);
+      servo.write(55);
     }
     else {
-      servo.write(0);
+      servo.write(32);
     }
 
     u8g2.clearBuffer();
@@ -1437,7 +1438,7 @@ void setup() {
 
   scale.power_down();
 
-  servo.write(0);
+  servo.write(30);
 
   delay(500);
 
