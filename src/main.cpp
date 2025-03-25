@@ -10,8 +10,8 @@ HX711 scale;
 #define LOADCELL_DOUT_PIN  26
 #define LOADCELL_SCK_PIN  25
 
-#define outputA 33
-#define outputB 32
+#define outputA 32
+#define outputB 33
 #define outputSwitch 23
 
 #define servoPin 27
@@ -57,8 +57,9 @@ Menu:
 -------------(menu_index == 0 -> press to menu)
 
 */
-// U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0);
-U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, /* clock=*/ 13, /* data=*/ 12, /* CS=*/ 14, /* reset=*/ 4);
+// U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0); // simulacia
+// U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, /* clock=*/ 13, /* data=*/ 12, /* CS=*/ 14, /* reset=*/ 4);  // velky displej
+U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ 22, /* data=*/ 21);  // maly displej
 
 /*
 E       13 (CLOCK)
@@ -639,7 +640,7 @@ void IRAM_ATTR switch_encoder() {
     lastDebounceTime = currentMillis;
  
       if (menu_index == 0) {  // digital_scale
-        delay(200);
+        // delay(200);
 
         menu_index = 15;
       }
@@ -830,7 +831,7 @@ void IRAM_ATTR switch_encoder() {
         switch (selected_item)
         {
         case 0:
-          delay(200);
+          // delay(200);
           
           menu_index = 1;
           break;
@@ -1503,7 +1504,7 @@ void loop() {
       break;
     case 16:
       scale.tare(5);
-      delay(100);
+      // delay(100);
       menu_index = 0;
       break;
   }
