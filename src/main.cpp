@@ -218,7 +218,7 @@ const unsigned char* bitmap_icons[4] [5] = {
   {epd_bitmap_settings_icon1, epd_bitmap_settings_icon2}
 };
 
-int preset1, preset2, preset3, language, offset_val;
+int preset1, preset2, preset3, language, offset_val, step_start, step_slow, step_end;
 double scale_factor;
 
 //num of languages
@@ -280,45 +280,47 @@ const int HONEY_MAX_ITEM_LENGTH = 15;
 
 char honey_menu_items [LANGUAGES][HONEY_ITEMS_NUM] [HONEY_MAX_ITEM_LENGTH] = {
   {{ "Menu" },
-  { "P1" },
-  { "P2" },
-  { "P3" },
+  { "Profil 1" },
+  { "Profil 2" },
+  { "Profil 3" },
   { "Vlastne" },
   { "Zmena profilov" }},
   {{ "Menu" },
-  { "P1" },
-  { "P2" },
-  { "P3" },
+  { "Preset 1" },
+  { "Preset 2" },
+  { "Preset 3" },
   { "Custom" },
   { "Change presets" }}
 };
 
 //Honey preset menu
 const int PRESET_ITEMS_NUM = 4;
-const int PRESET_MAX_ITEM_LENGTH = 7;
+const int PRESET_MAX_ITEM_LENGTH = 10;
 
 char preset_menu_items [LANGUAGES][PRESET_ITEMS_NUM] [PRESET_MAX_ITEM_LENGTH] = {
   {{ "Dozadu" },
-  { "P1" },
-  { "P2" },
-  { "P3" }},
+  { "Profil 1" },
+  { "Profil 2" },
+  { "Profil 3" }},
   {{ "Back" },
-  { "P1" },
-  { "P2" },
-  { "P3" }}
+  { "Preset 1" },
+  { "Preset 2" },
+  { "Preset 3" }}
 };
 
 //Control menu
-const int CONTROL_ITEMS_NUM = 3;
+const int CONTROL_ITEMS_NUM = 4;
 const int CONTROL_ITEMS_ITEM_LENGTH = 9;
 
 char control_menu_items [LANGUAGES][CONTROL_ITEMS_NUM] [CONTROL_ITEMS_ITEM_LENGTH] = {
   {{ "Menu" },
   { "Servo" },
-  { "Jazyk" }},
+  { "Jazyk" },
+  { "Kroky"}},
   {{ "Menu" },
   { "Servo" },
-  { "Language" }}
+  { "Language" },
+  { "Steps" }}
 };
 
 //Language menu
@@ -340,6 +342,19 @@ char scale_menu_items [LANGUAGES][SCALE_ITEMS_NUM] [SCALE_ITEMS_ITEM_LENGTH] = {
   { "Vynulovat" }},
   {{ "Menu" },
   { "Tare" }}
+};
+
+const int STEPS_ITEMS_NUM = 4;
+const int STEPS_ITEMS_NUM_LENGTH = 7;
+char steps_menu_items [LANGUAGES][STEPS_ITEMS_NUM] [STEPS_ITEMS_NUM_LENGTH] = {
+  {{ "Dozadu" },
+  { "Start" },
+  { "Pomale" },
+  { "Koniec" }},
+  {{ "Back" },
+  { "Start" },
+  { "Slow" },
+  { "End" }}
 };
 
 void encoder_change(int value) {
@@ -576,6 +591,29 @@ void encoder_change(int value) {
       }
     }
   }
+  else if (menu_index == 17) {  // steps_menu
+    if (value >= 1) {
+      if (selected_item+1<STEPS_ITEMS_NUM) {
+        border_index++;
+        selected_item++;
+      }
+    }
+    else if (value <= -1) {
+      if (selected_item-1>=0) {
+          border_index--;
+          selected_item--;
+      }
+    }
+  }
+  else if (menu_index == 18 || menu_index == 19 || menu_index == 20) { // steps_menu
+    if (value >= 1) {
+      servo_angle += value;
+    }
+    else if (value <= -1) {
+      servo_angle += value;
+    }
+    servo.write(servo_angle);
+  }
 }
 
 void read_encoder1() {
@@ -725,11 +763,8 @@ void IRAM_ATTR switch_encoder() {
       else if (menu_index == 5) {  // preset1
         preset1 = input_weight;
         pref.begin("storage", false);
-        delay(100);
         pref.putInt("preset1", input_weight);
-        delay(100);
         pref.end();
-        delay(100);
         menu_index = 4;
       }
       else if (menu_index == 6) {  // preset2
@@ -772,6 +807,12 @@ void IRAM_ATTR switch_encoder() {
           border_index = 0;
           start_index = 0;
           menu_index = 12;
+          break;
+        case 3:
+          selected_item = 0;
+          border_index = 0;
+          start_index = 0;
+          menu_index = 17;
           break;
         }
       }
@@ -840,6 +881,53 @@ void IRAM_ATTR switch_encoder() {
           break;
         }
       }
+      else if (menu_index == 17)  // steps_menu
+      {
+        switch (selected_item) {
+          case 0:
+            menu_index = 9;
+            break;
+          case 1:
+            servo_angle = step_start;
+            servo.write(servo_angle);
+            menu_index = 18;
+            break;
+          case 2:
+            servo_angle = step_slow;
+            servo.write(step_slow);
+            menu_index = 19;
+            break;
+          case 3:
+            servo_angle = step_end;
+            servo.write(step_end);
+            menu_index = 20;
+            break;
+        }
+      }
+      else if (menu_index == 18) { // start_step
+        pref.begin("storage", false);
+        pref.putInt("step_start", servo_angle);
+        pref.end();
+        step_start = servo_angle;
+        servo.write(step_end);
+        menu_index = 17;
+      }
+      else if (menu_index == 19) { // slow_step
+        pref.begin("storage", false);
+        pref.putInt("step_slow", servo_angle);
+        pref.end();
+        step_slow = servo_angle;
+        servo.write(step_end);
+        menu_index = 17;
+      }
+      else if (menu_index == 20) { // end_step
+        pref.begin("storage", false);
+        pref.putInt("step_end", servo_angle);
+        pref.end();
+        step_end = servo_angle;
+        servo.write(step_end);
+        menu_index = 17;
+      }
   }
 
 }
@@ -893,7 +981,7 @@ void main_menu()
   }
   u8g2.clearBuffer();
   
-  u8g2.drawXBMP(0, 22, 128, 21, epd_bitmap_sel_border);
+  u8g2.drawXBMP(1, 22, 128, 21, epd_bitmap_sel_border);
 
   u8g2.setFont(u8g2_font_helvR12_tr);
   u8g2.drawStr(25, 15, menu_items[language][item_sel_previous]);
@@ -1047,15 +1135,16 @@ void calibrate()
   //start calibration
   if (calibration == 0) {
     u8g2.clearBuffer();
-    u8g2.setFont(u8g2_font_6x10_tr);
+    // u8g2.setFont(u8g2_font_6x10_tr);
+    u8g2.setFont(u8g2_font_helvR12_tr);
     if (language == 0) {
-      u8g2.drawStr(19, 15, "Odstrante zataz");
-      u8g2.drawStr(11, 25, "z vahoveho senzora");
-      u8g2.drawStr(13, 50, "stlacte na pokrac.");
+      u8g2.drawStr(3, 20, "Odstrante zataz");
+      u8g2.setFont(u8g2_font_6x10_tr);
+      u8g2.drawStr(11, 50, "stlacte na pokrac.");
     }
     else if (language == 1) {
-      u8g2.drawStr(14 ,15, "Remove all weight");
-      u8g2.drawStr(14 ,25, "from the loadcell.");
+      u8g2.drawStr(5, 20, "Remove weight");
+      u8g2.setFont(u8g2_font_6x10_tr);
       u8g2.drawStr(14 ,50, "press to continue");
     }
     u8g2.sendBuffer();
@@ -1074,16 +1163,17 @@ void calibrate()
   }
   else if (calibration == 3) {
     u8g2.clearBuffer();
-    u8g2.setFont(u8g2_font_6x10_tr);
+    // u8g2.setFont(u8g2_font_6x10_tr);
+    u8g2.setFont(u8g2_font_helvR12_tr);
     if (language == 0) {
-      u8g2.drawStr(16, 15, "Umiestnite zataz");
-      u8g2.drawStr(7, 25, "na snimac zatazenia");
-      u8g2.drawStr(16, 35, "a nastavte vahu:");
+      u8g2.drawStr(14, 20, "Polozte zataz");
+      u8g2.setFont(u8g2_font_6x10_tr);
+      u8g2.drawStr(9, 35, "nastavte hmotnost:");
     }
     else if (language == 1) {
-      u8g2.drawStr(25 ,15, "Place a weight");
-      u8g2.drawStr(20 ,25, "on the loadcell");
-      u8g2.drawStr(10 ,35, "and set the weight:");
+      u8g2.drawStr(15, 20, "Place weight");
+      u8g2.setFont(u8g2_font_6x10_tr);
+      u8g2.drawStr(15 ,35, "set the weight:");
     }
     char text[8];
     snprintf(text, sizeof(text), "%d g", input_weight);
@@ -1144,16 +1234,17 @@ void confirm(int input) {
 void fill_honey() {
   if (filling == 0) {
     u8g2.clearBuffer();
-    u8g2.setFont(u8g2_font_6x10_tr);
+    // u8g2.setFont(u8g2_font_6x10_tr);
+    u8g2.setFont(u8g2_font_helvR12_tr);
     if (language == 0) {
-      u8g2.drawStr(13, 15, "Prosim odstrante");
-      u8g2.drawStr(25, 25, "vsetku zataz");
+      u8g2.drawStr(3, 20, "Odstrante zataz");
+      u8g2.setFont(u8g2_font_6x10_tr);
       u8g2.drawStr(10, 50, "stlacte na pokrac.");
     }
     else if (language == 1) {
-      u8g2.drawStr(26, 15, "Please remove");
-      u8g2.drawStr(33, 25, "any weight");
-      u8g2.drawStr(15, 50, "press to continue");
+      u8g2.drawStr(3, 20, "Remove weight");
+      u8g2.setFont(u8g2_font_6x10_tr);
+      u8g2.drawStr(14, 50, "press to continue");
     }
     u8g2.sendBuffer();
   }
@@ -1165,18 +1256,15 @@ void fill_honey() {
   else if (filling == 2) {
     buzzer = 0;
     u8g2.clearBuffer();
-    u8g2.setFont(u8g2_font_6x10_tr);
+    // u8g2.setFont(u8g2_font_6x10_tr);
+    u8g2.setFont(u8g2_font_helvR12_tr);
     if (language == 0) {
-      u8g2.drawStr(1, 15, "Pre spustenie plnenia");
-      u8g2.drawStr(19, 25, "polozte nadobu");
-      u8g2.drawStr(43, 35, "na vahu");
+      u8g2.drawStr(5, 20, "Polozte nadobu");
       u8g2.setFont(u8g2_font_5x8_tr);
       u8g2.drawStr(19, 50, "stlacte na ukonc.");
     }
     else if (language == 1) {
-      u8g2.drawStr(19, 15, "To start filling");
-      u8g2.drawStr(10, 25, "place the container");
-      u8g2.drawStr(30, 35, "on the scale");
+      u8g2.drawStr(5, 20, "Place the bottle");
       u8g2.setFont(u8g2_font_5x8_tr);
       u8g2.drawStr(32, 50, "press to exit");
     }
@@ -1217,16 +1305,13 @@ void fill_honey() {
     }
 
     if (fill_percentage < 80) {
-      servo.write(78);
-    }
-    else if (fill_percentage < 90) {
-      servo.write(68);
+      servo.write(step_start);
     }
     else if (fill_percentage < 100) {
-      servo.write(55);
+      servo.write(step_slow);
     }
     else {
-      servo.write(32);
+      servo.write(step_end);
     }
 
     u8g2.clearBuffer();
@@ -1301,7 +1386,7 @@ void control_menu() {
 
   u8g2.setFont(u8g2_font_6x10_tr);
 
-  for (int h = 0; h < 3; h++){
+  for (int h = 0; h < 4; h++){
     u8g2.drawStr(15, 11+h*12, control_menu_items[language][h + start_index]);
     if (h+start_index == 0) {
       u8g2.setFont(u8g2_font_unifont_t_symbols);
@@ -1385,6 +1470,7 @@ void scale_menu() {
   u8g2.drawXBMP(0, 2+border_index*12, 128, 12, epd_bitmap_border);
 
   u8g2.setFont(u8g2_font_6x10_tr);
+  // u8g2.setFont(u8g2_font_helvR12_tr);
 
   for (int h = 0; h < 2; h++){
     u8g2.drawStr(15, 11+h*12, scale_menu_items[language][h + start_index]);
@@ -1394,7 +1480,77 @@ void scale_menu() {
       u8g2.setFont(u8g2_font_6x10_tr);
     }
   }
+
+  // for (int h = 0; h < 2; h++){
+  //   u8g2.drawStr(15, 19+h*21, scale_menu_items[language][h + start_index]);
+  //   if (h+start_index == 0) {
+  //     u8g2.setFont(u8g2_font_unifont_t_symbols);
+  //     u8g2.drawUTF8(4, 12+h*12, "←");
+  //     u8g2.setFont(u8g2_font_helvR12_tr);
+  //   }
+  // }
   u8g2.sendBuffer();
+}
+
+void steps_menu() {
+  u8g2.clearBuffer();
+
+  u8g2.drawXBMP(0, 2+border_index*12, 128, 12, epd_bitmap_border);
+
+  u8g2.setFont(u8g2_font_6x10_tr);
+
+  for (int h = 0; h < 4; h++){
+    u8g2.drawStr(15, 11+h*12, steps_menu_items[language][h + start_index]);
+    if (h+start_index == 0) {
+      u8g2.setFont(u8g2_font_unifont_t_symbols);
+      u8g2.drawUTF8(4, 12+h*12, "←");
+      u8g2.setFont(u8g2_font_6x10_tr);
+    }
+    if (h+start_index == 1) {
+      char text[8];
+      snprintf(text, sizeof(text), "%d", step_start);
+      u_int8_t posX = 125 - u8g2.getStrWidth(text);
+      u8g2.drawStr(posX, 11+h*12, text);
+    }
+    else if (h+start_index == 2) {
+      char text[8];
+      snprintf(text, sizeof(text), "%d", step_slow);
+      u_int8_t posX = 125 - u8g2.getStrWidth(text);
+      u8g2.drawStr(posX, 11+h*12, text);
+    }
+    else if (h+start_index == 3) {
+      char text[8];
+      snprintf(text, sizeof(text), "%d", step_end);
+      u_int8_t posX = 125 - u8g2.getStrWidth(text);
+      u8g2.drawStr(posX, 11+h*12, text);
+    }
+  }
+  u8g2.sendBuffer();
+}
+
+void steps_change() {
+  u8g2.clearBuffer();
+
+  u8g2.setFont(u8g2_font_6x10_tr);
+  if (language == 0) u8g2.drawStr(25 ,15, "Zmente tocenim");
+  else if (language == 1) u8g2.drawStr(16 ,15, "Rotate to change");
+
+  u8g2.setFont(u8g2_font_fub20_tr);
+  char text[8];
+  snprintf(text, sizeof(text), "%d °", servo_angle);
+
+  
+  int textWidth = u8g2.getStrWidth(text);
+  int xPos = 92 - textWidth;
+  u8g2.drawStr(xPos, 42, text);
+  u8g2.drawCircle(xPos+textWidth, 22, 2);
+
+  u8g2.setFont(u8g2_font_5x8_tr);
+  if (language == 0) u8g2.drawStr(20 ,58, "kliknite na koniec");
+  else if (language == 1) u8g2.drawStr(32 ,58, "click to exit");
+
+  u8g2.sendBuffer();
+
 }
 
 void setup() {
@@ -1426,6 +1582,9 @@ void setup() {
   preset1 = pref.getInt("preset1", 1000);
   preset2 = pref.getInt("preset2", 700);
   preset3 = pref.getInt("preset3", 350);
+  step_start = pref.getInt("step_start", 75);
+  step_slow = pref.getInt("step_slow", 60);
+  step_end = pref.getInt("step_end", 32);
   language = pref.getInt("language", 0);
   offset_val = pref.getInt("offset", -357691);
   scale_factor = pref.getDouble("scale", 400.464050);
@@ -1506,6 +1665,18 @@ void loop() {
       scale.tare(5);
       // delay(100);
       menu_index = 0;
+      break;
+    case 17:
+      steps_menu();
+      break;
+    case 18:
+      steps_change();
+      break;
+    case 19:
+      steps_change();
+      break;
+    case 20:
+      steps_change();
       break;
   }
 }
