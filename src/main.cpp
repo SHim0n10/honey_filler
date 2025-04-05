@@ -61,7 +61,7 @@ Menu:
 // U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, /* clock=*/ 13, /* data=*/ 12, /* CS=*/ 14, /* reset=*/ 4);  // velky displej
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ 22, /* data=*/ 21);  // maly displej
 
-/*
+/* zapojenie pri pouzití SPI displeja
 E       13 (CLOCK)
 RW      12 (DATA)
 RS      14 (CS)
@@ -221,6 +221,8 @@ const unsigned char* bitmap_icons[4] [5] = {
 int preset1, preset2, preset3, language, offset_val, step_start, step_slow, step_end;
 double scale_factor;
 
+int save_flag = 0;
+
 //num of languages
 const int LANGUAGES = 2;
 
@@ -246,7 +248,6 @@ int counter = 0;
 u_int8_t buzzer = 0;
 
 int16_t servo_angle = 0;
-
 
 uint8_t calibration = 0;
 int offset = 0;
@@ -359,6 +360,7 @@ char steps_menu_items [LANGUAGES][STEPS_ITEMS_NUM] [STEPS_ITEMS_NUM_LENGTH] = {
 
 void encoder_change(int value) {
   if (menu_index == 1) {  // main_menu
+    value = value * -1; // prevrati hodnotu pre spravne ovladanie
     if (value >= 1) {
       if (item_selected+1>=ITEMS_NUM){
         item_selected = 0;
@@ -378,6 +380,7 @@ void encoder_change(int value) {
   item_index = 0;
   }
   else if (menu_index == 2) {  // honey_fill_menu
+    value = value * -1; // prevrati hodnotu pre spravne ovladanie
     if (value >= 1) {
       if (selected_item+1<HONEY_ITEMS_NUM) { // pokial nie je na konci
         if (border_index==4) { // ak je border naspodu
@@ -422,6 +425,7 @@ void encoder_change(int value) {
     }
   }
   else if (menu_index == 4) { // honey_preset_menu
+    value = value * -1; // prevrati hodnotu pre spravne ovladanie
     if (value >= 1) {
       if (selected_item+1<PRESET_ITEMS_NUM) { // pokial nie je na konci
         border_index++;
@@ -458,7 +462,7 @@ void encoder_change(int value) {
       }
     }
   }
-  else if (menu_index == 8) {
+  else if (menu_index == 8) {  // calibration
     if (value >= 1) {
       if (input_weight+value*5 <= 0) {
         input_weight = 0;
@@ -482,6 +486,7 @@ void encoder_change(int value) {
     }
   }
   else if (menu_index == 9) {  // control_menu
+    value = value * -1; // prevrati hodnotu pre spravne ovladanie
     if (value >= 1) {
       if (selected_item+1<CONTROL_ITEMS_NUM) { // pokial nie je na konci
         if (border_index==4) { // ak je border naspodu
@@ -515,7 +520,8 @@ void encoder_change(int value) {
       choice = 0;
     }
   }
-  else if (menu_index == 12) { // language_menu
+  else if (menu_index == 12) {  // language_menu
+    value = value * -1; // prevrati hodnotu pre spravne ovladanie
     if (value >= 1) {
       if (selected_item+1<LANGUAGE_ITEMS_NUM) { // pokial nie je na konci
         if (border_index==4) { // ak je border naspodu
@@ -541,13 +547,13 @@ void encoder_change(int value) {
       }
     }
   }
-  else if (menu_index == 13) {
+  else if (menu_index == 13) {  // servo_control
     if (value >= 1) {
       if (servo_angle+value <= 0) {
         servo_angle = 0;
       }
-      else if (servo_angle+value >= 75) {
-        servo_angle = 75;
+      else if (servo_angle+value >= 100) {
+        servo_angle = 100;
       }
       else {
         servo_angle += value;
@@ -566,10 +572,10 @@ void encoder_change(int value) {
         servo_angle = 0;
       }
     }
-    int servo_angle1 = map(servo_angle, 0, 75, 32, 78);
+    int servo_angle1 = map(servo_angle, 0, 100, step_end, step_start);
     servo.write(servo_angle1);
   }
-  else if (menu_index == 14) {
+  else if (menu_index == 14) {  // pause_menu
     if (value >= 1) {
       choice = 1;
     }
@@ -577,7 +583,8 @@ void encoder_change(int value) {
       choice = 0;
     }
   }
-  else if (menu_index == 15) {
+  else if (menu_index == 15) {  // scale_menu
+    value = value * -1; // prevrati hodnotu pre spravne ovladanie
     if (value >= 1) {
       if (selected_item+1<SCALE_ITEMS_NUM) { // pokial nie je na konci
         border_index++;
@@ -592,6 +599,7 @@ void encoder_change(int value) {
     }
   }
   else if (menu_index == 17) {  // steps_menu
+    value = value * -1; // prevrati hodnotu pre spravne ovladanie
     if (value >= 1) {
       if (selected_item+1<STEPS_ITEMS_NUM) {
         border_index++;
@@ -605,12 +613,22 @@ void encoder_change(int value) {
       }
     }
   }
-  else if (menu_index == 18 || menu_index == 19 || menu_index == 20) { // steps_menu
+  else if (menu_index == 18 || menu_index == 19 || menu_index == 20) { // steps_change
     if (value >= 1) {
-      servo_angle += value;
+      if (servo_angle + value >= 180) {
+        servo_angle = 180;
+      }
+      else {
+        servo_angle += value;
+      }
     }
     else if (value <= -1) {
-      servo_angle += value;
+      if (servo_angle + value <= 0) {
+        servo_angle = 0;
+      }
+      else {
+        servo_angle += value;
+      }
     }
     servo.write(servo_angle);
   }
@@ -678,7 +696,6 @@ void IRAM_ATTR switch_encoder() {
     lastDebounceTime = currentMillis;
  
       if (menu_index == 0) {  // digital_scale
-        // delay(200);
 
         menu_index = 15;
       }
@@ -732,7 +749,7 @@ void IRAM_ATTR switch_encoder() {
             break;
         }
       }
-      else if (menu_index == 3) {
+      else if (menu_index == 3) {  // custom_fill_menu
         if (input_weight == 0) {
           menu_index = 2;
         }
@@ -762,23 +779,17 @@ void IRAM_ATTR switch_encoder() {
       }
       else if (menu_index == 5) {  // preset1
         preset1 = input_weight;
-        pref.begin("storage", false);
-        pref.putInt("preset1", input_weight);
-        pref.end();
+        save_flag = 1;
         menu_index = 4;
       }
       else if (menu_index == 6) {  // preset2
         preset2 = input_weight;
-        pref.begin("storage", false);
-        pref.putInt("preset2", input_weight);
-        pref.end();
+        save_flag = 1;
         menu_index = 4;
       }
       else if (menu_index == 7) {  // preset3
         preset3 = input_weight;
-        pref.begin("storage", false);
-        pref.putInt("preset3", input_weight);
-        pref.end();
+        save_flag = 1;
         menu_index = 4;
       }
       else if (menu_index == 8) {  // calibration
@@ -801,6 +812,7 @@ void IRAM_ATTR switch_encoder() {
           break;
         case 1:
           menu_index = 13;
+          servo_angle = 0;
           break;
         case 2:
           selected_item = 0;
@@ -828,26 +840,22 @@ void IRAM_ATTR switch_encoder() {
         }
       }
       else if (menu_index == 11) {  // filling
-        if (filling == 0) {
+        if (filling == 0) {  // odsrtanovanie zataze
           filling = 1;
         }
-        else if (filling == 2) {
+        else if (filling == 2) {  // cakanie na nadobu -> menu
           menu_index = 2;
           filling = 0;
-          servo.write(32);
         }
-        else if (filling == 3) {
-          servo.write(32);
+        else if (filling == 3) {  // plnenie -> pauznutie
           choice = 1;
           menu_index = 14;
         }
       }
       else if (menu_index == 12) {  // language_menu
         if (selected_item != 0) {
-          pref.begin("storage", false);
-          pref.putInt("language", selected_item-1);
-          pref.end();
           language = selected_item-1;
+          save_flag = 3;
           menu_index = 9;
         }
         else {
@@ -855,8 +863,8 @@ void IRAM_ATTR switch_encoder() {
         }
       }
       else if (menu_index == 13) {  // servo_control
-        servo_angle = 0;
-        servo.write(30);
+        servo_angle = step_end;
+        servo.write(step_end);
         menu_index = 9;
       }
       else if (menu_index == 14) {  // puase_fill
@@ -872,8 +880,6 @@ void IRAM_ATTR switch_encoder() {
         switch (selected_item)
         {
         case 0:
-          // delay(200);
-          
           menu_index = 1;
           break;
         case 1:
@@ -905,27 +911,18 @@ void IRAM_ATTR switch_encoder() {
         }
       }
       else if (menu_index == 18) { // start_step
-        pref.begin("storage", false);
-        pref.putInt("step_start", servo_angle);
-        pref.end();
         step_start = servo_angle;
-        servo.write(step_end);
+        save_flag = 2;
         menu_index = 17;
       }
       else if (menu_index == 19) { // slow_step
-        pref.begin("storage", false);
-        pref.putInt("step_slow", servo_angle);
-        pref.end();
         step_slow = servo_angle;
-        servo.write(step_end);
+        save_flag = 2;
         menu_index = 17;
       }
       else if (menu_index == 20) { // end_step
-        pref.begin("storage", false);
-        pref.putInt("step_end", servo_angle);
-        pref.end();
         step_end = servo_angle;
-        servo.write(step_end);
+        save_flag = 2;
         menu_index = 17;
       }
   }
@@ -1201,7 +1198,6 @@ void calibrate()
   }
 }
 
-// confirmation tab
 void confirm(int input) {
   u8g2.clearBuffer();
 
@@ -1249,12 +1245,12 @@ void fill_honey() {
     u8g2.sendBuffer();
   }
   else if (filling == 1) {
-    delay(200);
     scale.tare(5);
     filling = 2;
   }
   else if (filling == 2) {
     buzzer = 0;
+    noTone(buzzerPin);
     u8g2.clearBuffer();
     // u8g2.setFont(u8g2_font_6x10_tr);
     u8g2.setFont(u8g2_font_helvR12_tr);
@@ -1264,7 +1260,7 @@ void fill_honey() {
       u8g2.drawStr(19, 50, "stlacte na ukonc.");
     }
     else if (language == 1) {
-      u8g2.drawStr(5, 20, "Place the bottle");
+      u8g2.drawStr(15, 20, "Place the jar");
       u8g2.setFont(u8g2_font_5x8_tr);
       u8g2.drawStr(32, 50, "press to exit");
     }
@@ -1284,7 +1280,6 @@ void fill_honey() {
     }
     if (weight > 50)
     {
-      delay(1000);
       scale.tare(5);
       filling = 3;
     }
@@ -1294,6 +1289,8 @@ void fill_honey() {
     }
   }
   if (filling == 3) {
+    // if (ledcReadFreq(PWM_channel) != 0) {
+    //   tone(PWM_channel, 0);
     int16_t actual_weight = scale.get_units(2);
     if (actual_weight < 0) {
       actual_weight = 0;
@@ -1340,13 +1337,12 @@ void fill_honey() {
 
     u8g2.sendBuffer();
     if (fill_percentage >= 100) {
-      delay(1000);
       filling = 4;
       fill_counter++;
     }
   }
-  if (filling == 4) {
 
+  if (filling == 4) {  // filling complete
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_6x10_tr);
     if (language == 0) {
@@ -1367,13 +1363,13 @@ void fill_honey() {
     u8g2.sendBuffer();
 
     if (buzzer == 0) {
-      digitalWrite(buzzerPin, HIGH);
+      analogWrite(buzzerPin, 128);
       delay(1000);
-      digitalWrite(buzzerPin, LOW);
+      analogWrite(buzzerPin, 0);
       buzzer = 1;
     }
     if (scale.get_units(2) < 50) {
-      delay(500);
+      delay(1500);
       filling = 1;
     }
   }
@@ -1424,13 +1420,12 @@ void servo_control() {
 
   u8g2.setFont(u8g2_font_fub20_tr);
   char text[8];
-  snprintf(text, sizeof(text), "%d °", servo_angle);
+  snprintf(text, sizeof(text), "%d %%", servo_angle);
 
   
   int textWidth = u8g2.getStrWidth(text);
-  int xPos = 92 - textWidth;
+  int xPos = 110 - textWidth;
   u8g2.drawStr(xPos, 42, text);
-  u8g2.drawCircle(xPos+textWidth, 22, 2);
 
   u8g2.setFont(u8g2_font_5x8_tr);
   if (language == 0) u8g2.drawStr(20 ,58, "kliknite na koniec");
@@ -1480,15 +1475,6 @@ void scale_menu() {
       u8g2.setFont(u8g2_font_6x10_tr);
     }
   }
-
-  // for (int h = 0; h < 2; h++){
-  //   u8g2.drawStr(15, 19+h*21, scale_menu_items[language][h + start_index]);
-  //   if (h+start_index == 0) {
-  //     u8g2.setFont(u8g2_font_unifont_t_symbols);
-  //     u8g2.drawUTF8(4, 12+h*12, "←");
-  //     u8g2.setFont(u8g2_font_helvR12_tr);
-  //   }
-  // }
   u8g2.sendBuffer();
 }
 
@@ -1558,10 +1544,9 @@ void setup() {
   pinMode(outputB,INPUT_PULLUP);
   pinMode(outputSwitch, INPUT_PULLUP);
   pinMode(buzzerPin, OUTPUT);
-  digitalWrite(buzzerPin, LOW);
+
   attachInterrupt(digitalPinToInterrupt(outputA), read_encoder1, CHANGE);
   attachInterrupt(digitalPinToInterrupt(outputB), read_encoder1, CHANGE);
-
 
   attachInterrupt(digitalPinToInterrupt(outputSwitch), switch_encoder, FALLING);
 
@@ -1582,9 +1567,9 @@ void setup() {
   preset1 = pref.getInt("preset1", 1000);
   preset2 = pref.getInt("preset2", 700);
   preset3 = pref.getInt("preset3", 350);
-  step_start = pref.getInt("step_start", 75);
-  step_slow = pref.getInt("step_slow", 60);
-  step_end = pref.getInt("step_end", 32);
+  step_start = pref.getInt("step_start", 68);
+  step_slow = pref.getInt("step_slow", 59);
+  step_end = pref.getInt("step_end", 25);
   language = pref.getInt("language", 0);
   offset_val = pref.getInt("offset", -357691);
   scale_factor = pref.getDouble("scale", 400.464050);
@@ -1598,12 +1583,34 @@ void setup() {
 
   scale.power_down();
 
-  servo.write(30);
+  servo.write(step_end);
 
-  delay(500);
+  vTaskDelay(pdMS_TO_TICKS(500));
 
 }
 void loop() {
+  if (save_flag == 1) {
+    pref.begin("storage", false);
+    pref.putInt("preset1", preset1);
+    pref.putInt("preset2", preset2);
+    pref.putInt("preset3", preset3);
+    pref.end();
+    save_flag = 0;
+  }
+  else if (save_flag == 2) {
+    pref.begin("storage", false);
+    pref.putInt("step_start", step_start);
+    pref.putInt("step_slow", step_slow);
+    pref.putInt("step_end", step_end);
+    pref.end();
+    save_flag = 0;
+  }
+  else if (save_flag == 3) {
+    pref.begin("storage", false);
+    pref.putInt("language", language);
+    pref.end();
+    save_flag = 0;
+  }
   switch(menu_index) {
     case 0:
       home();
@@ -1617,6 +1624,9 @@ void loop() {
     case 2:
       if (scale.is_ready()) {
         scale.power_down();
+      }
+      if (servo.read() != step_end) {
+        servo.write(step_end);
       }
       honey_fill_menu();
       break;
@@ -1656,6 +1666,9 @@ void loop() {
       break;
     case 14:
       if (scale.is_ready()) scale.power_down();
+      if (servo.read() != step_end) {
+        servo.write(step_end);
+      }
       pause_fill();
       break;
     case 15:
@@ -1663,10 +1676,13 @@ void loop() {
       break;
     case 16:
       scale.tare(5);
-      // delay(100);
+      vTaskDelay(pdMS_TO_TICKS(100));
       menu_index = 0;
       break;
     case 17:
+      if (servo.read() != step_end) {
+        servo.write(step_end);
+      }
       steps_menu();
       break;
     case 18:
